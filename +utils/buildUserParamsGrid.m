@@ -1,0 +1,110 @@
+function G = buildUserParamsGrid(panelHandle, inputObj)
+% builds the params grid so user can define params in a gui panel
+
+if ~isfield(inputObj, 'userParams') || isempty(inputObj.userParams)
+    inputObj.defineUserParams
+end
+
+paramFields = fields(inputObj.userParams);
+Nparams = numel(paramFields);
+
+columnNames = {'param name', 'value'};
+
+G = uigridlayout(panelHandle, [Nparams+1, numel(columnNames)+1]);
+G.RowHeight = repmat({22}, [1, Nparams+1]);
+G.ColumnWidth{1} = '5x';
+G.ColumnWidth{2} = '8x';
+G.ColumnWidth{3} = '2x';
+G.Scrollable = true;
+
+% build title row:
+for nc = 1:numel(columnNames)
+    paramName = uilabel(G, "Text", columnNames{nc}, "FontWeight", "Bold", "HorizontalAlignment", "Center");
+    paramName.Layout.Row = 1;
+    if strcmp(columnNames{nc}, 'description')
+        paramName.Layout.Column = [nc, nc+1];
+    else
+        paramName.Layout.Column = nc;
+    end
+end
+
+for np = 1:Nparams
+    selectionType = inputObj.userParams.(paramFields{np}).type;
+    
+    if isfield(inputObj.userParams.(paramFields{np}), 'description')
+        description = inputObj.userParams.(paramFields{np}).description;
+    else
+        description = '(no description)';
+    end
+
+    switch selectionType
+        case 'numerical'
+            % param name column:
+            paramName = uilabel(G, "Text", [paramFields{np}, ': '], 'HorizontalAlignment', 'Right');
+            paramName.Layout.Row = np+1;
+            paramName.Layout.Column = 1;
+            paramName.Tooltip = description;
+
+            % set edit field column:
+            param = uieditfield(G, 'numeric', 'Value', inputObj.userParams.(paramFields{np}).value);
+            param.Layout.Row = np+1;
+            param.Layout.Column = 2;
+
+        case 'dropdown'
+            % param name column:
+            paramName = uilabel(G, "Text", [paramFields{np}, ': '], 'HorizontalAlignment', 'Right');
+            paramName.Layout.Row = np+1;
+            paramName.Layout.Column = 1;
+            paramName.Tooltip = description;
+
+            % set edit field column:
+            param = uidropdown(G);
+            param.Layout.Row = np+1;
+            param.Layout.Column = 2;
+            param.Items = inputObj.userParams.(paramFields{np}).options;
+
+        case 'file'
+            % param name column:
+            paramName = uilabel(G, "Text", [paramFields{np}, ': '], 'HorizontalAlignment', 'Right');
+            paramName.Layout.Row = np+1;
+            paramName.Layout.Column = 1;
+            paramName.Tooltip = description;
+
+            % set edit field column:
+            param = uieditfield(G, 'text', 'Value', inputObj.userParams.(paramFields{np}).value);
+            param.Layout.Row = np+1;
+            param.Layout.Column = 2;
+
+
+                        @(btn, event) browseFile(btn, editField);
+            folderButton = uibutton(G, 'Text', '', 'ButtonPushedFcn', @(btn, event) selectFile(btn, param, inputObj.wheresWhaledo.fig));
+            folderButton.Layout.Row = np+1;
+            folderButton.Layout.Column = 3;
+            folderButton.Icon = '+gui\folder_icon.jpg';
+            folderButton.IconAlignment = 'Top';
+
+        otherwise % any string
+            % param name column:
+            paramName = uilabel(G, "Text", [paramFields{np}, ': '], 'HorizontalAlignment', 'Right');
+            paramName.Layout.Row = np+1;
+            paramName.Layout.Column = 1;
+            paramName.Tooltip = description;
+
+            % set edit field column:
+            param = uieditfield(G, 'text', 'Value', inputObj.userParams.(paramFields{np}).value);
+            param.Layout.Row = np+1;
+            param.Layout.Column = 2;
+    end
+end
+
+end
+%%
+function selectFile(~, param, WW)
+
+[file, path] = uigetfile('*.*', 'Select a File');
+if file ~= 0
+    % Update the corresponding edit field with the selected file name
+    param.Value = fullfile(path, file);
+end
+figure(WW)
+end

@@ -36,7 +36,7 @@ hloc(:,3) = -[233, 246, 238, 251, 229].';
 maxTDOA = max(sqrt(sum((hloc - hloc(1, :)).^2)))/1500 + .01;
 maxLag = ceil(2*maxTDOA*fs);
 
-T = readtable('D:\OSA\Localization_Files\Dep1.1_LF_UID06_Mn\UID_06_Mn_Measurements.csv');
+T = readtable('D:\OSA\Localization_Files\Dep1.1_LF_UID06_Mn\UID_06_Mn_Measurements.xlsx');
 
 TDOA = nan(size(T, 1), Ntdoa);
 TDet = datenum(T.UTC);
@@ -47,38 +47,15 @@ iter = 0;
 twin = 8; % time window
 Nwin = twin*fs;
 Nfft = Nwin;
-% n1 = 1;
-% n2 = n1+Nwin-1;
-% xAve = zeros(Nwin, 1);
-% XAve = xAve;
-% while n2<=info.TotalSamples || iter<100
-%     t1 = fileStartTime + (n1-1)/(fs*spd);
-%     t2 = fileStartTime + (n2-1)/(fs*spd);
-%     idx = find(TDet>=t1 & TDet<=t2);
-%     if isempty(idx)
-%         iter = iter+1;
-%         x = audioread(fileIn, [n1, n2]);
-%         X = fft(x);
-%         XAve = X + XAve;
-%     end
-%     n1 = n2+1;
-%     n2 = n1+Nwin-1;
-%     if n2>info.TotalSamples
-%         break
-%     end
-% end
-% 
-% XAve = XAve./iter;
-% % xAve = xAve./iter;
-% % XAve = fft(xAve);
-%%
 
-% fstart = T.freqBeg;
-% fend = T.freqEnd;
-fstart = 10;
-fend = 1900;
-f1 = min([fstart; fend]);
-f2 = max([fstart; fend]);
+f = (0:Nfft).*fs/Nfft;
+
+fstart = T.freqMin;
+fend = T.freqMax;
+% fstart = 10;
+% fend = 1900;
+f1 = min(fstart);
+f2 = max(fend);
 
 IdxPassband = find((f>=f1 & f<=f2) | (f>=(fs-f2) & f<=(fs-f1)));
 % IdxPassband = 1:12e3;

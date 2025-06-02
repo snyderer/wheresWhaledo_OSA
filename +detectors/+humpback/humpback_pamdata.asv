@@ -1,0 +1,49 @@
+classdef humpback_pamdata < handle
+    % detector object for running a humpback whale detector using labeled detections from PAMGuard
+    properties
+        DET % Detections
+        saveloc
+        userParams
+        internalParams
+        pamData
+    end
+    methods
+        function defineUserParams(obj)
+            % This function will be called by localizePanel to make a table 
+            % of parameters the user needs to set to run this detector.
+
+            % list of required user-defined params needed for this detector
+            % values are default values
+            obj.userParams.PAMfileLocation.value = pwd;
+            obj.userParams.PAMfileLocation.type = 'file';
+            obj.userParams.PAMfileLocation.description = 'Location of PAM file';
+            
+            obj.userParams.filterType.value = 'FIR';
+            obj.userParams.filterType.type = 'dropdown';
+            obj.userParams.filterType.options = {'FIR', 'butter', 'ellip'};
+            obj.userParams.filterType.description = 'Filter type';
+
+            obj.userParams.filterOrder.value = 15;
+            obj.userParams.filterOrder.type = 'numerical';
+            obj.userParams.filterOrder.description = 'filter order';
+
+            obj.userParams.maxTDOA.value = 1;
+            obj.userParams.maxTDOA.type = 'numerical';
+            obj.userParams.maxTDOA.description = 'maximum allowed TDOA [s]';
+        end
+
+        function updateUserParams(obj)
+            G = 
+            
+        end
+       
+        function run(obj, WW) % run detector
+            utils.getUserParamsFromGrid(WW.)
+            Ntdoa = nchoosek(4, 2);
+
+            ok = 1;
+        end
+
+
+    end
+end

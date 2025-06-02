@@ -1,0 +1,1 @@
+This directory contains all the localization methods available by default in Where's Whaledo.

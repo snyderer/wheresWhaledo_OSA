@@ -1,0 +1,70 @@
+classdef wheresWhaledo < handle
+    properties
+        params      % parameters for main interface
+        fig         % figure handle
+
+        arrayPanel      % handle to panel for setting array configurations
+        detectorPanel   % handle to panel for setting detector properties and creating TDOA tables
+        localizePanel   % handle to panel for configuring localization method and data
+    end
+
+    methods
+        function obj = wheresWhaledo(params)
+            % run Where's Whaledo main interface.
+            if nargin==0 % no user-provided params, set to default
+                params.source = "default";
+            elseif nargin==1 % override default with user-provided params
+                params.source = "custom";
+            end
+            obj.setParams(params) % set params
+
+            % determine if Where's Whaledo figure is already open:
+            isfig = findall(0, "Type", "figure", "name", "Where's Whaledo");
+            if isempty(isfig)
+                obj.fig = uifigure("Name", "Where's Whaledo");
+            else
+                obj.fig = isfig;
+            end
+            set(obj.fig, "Position", obj.params.figPosition)
+            if obj.params.displayTitle
+                obj.setTitle
+            end
+            obj.buildPanels
+        end
+
+        function setParams(obj, params)
+            % set default parameters:
+            obj.params.figPosition = [15, 85, 1137, 706];
+            obj.params.colors.background = [247, 253, 253]./255;
+            obj.params.colors.items = [136, 195, 235]./255;
+            obj.params.colors.text = [42, 32, 42]./255;
+            obj.params.displayTitle = false; % TO DO: build title bar code (turned off for now)
+            
+            panelSpacing = 8;   % spacing between panels
+            numPanels = 3;      % number of panels
+            panelWidth = obj.params.figPosition(3)/numPanels - panelSpacing;
+            panelHeight = obj.params.figPosition(4)-panelSpacing;
+            for np = 1:numPanels
+                obj.params.panelPositions(np, :) = [(np-1)*(panelWidth+panelSpacing) + panelSpacing/2, panelSpacing/2, panelWidth, panelHeight];
+            end
+            % override default parameters with user-provided parameters:
+            userParamNames = fieldnames(params);
+            for nf = 1:numel(userParamNames)
+                obj.params.(userParamNames{nf}) = params.(userParamNames{nf});
+            end
+
+        end
+
+        function setTitle(obj)
+            % TO DO 
+            titleHeight = 10;
+            obj.params.panelPositions(:, 4) = obj.params.panelPositions(:, 4) - titleHeight;
+        end
+        function buildPanels(obj)
+            obj.arrayPanel = gui.arrayPanel(obj.fig, obj.params.panelPositions(1, :), obj.params);
+            obj.detectorPanel = gui.detectorPanel(obj.fig, obj.params.panelPositions(2, :), obj.params); 
+%             obj.localizePanel = gui.localizePanel(obj.fig, obj.params.panelPositions(3, :), obj.params);
+        end
+
+    end
+end

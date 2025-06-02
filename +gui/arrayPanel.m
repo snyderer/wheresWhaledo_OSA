@@ -1,0 +1,120 @@
+classdef arrayPanel < handle
+    properties
+        wheresWhaledo              % handle to Where's Whaledo object
+        panelHandle     % handle for array panel within Where's Whaledo interface
+        panelPosition
+
+        loadConfigBtn   % handle for "load existing array configuration file" button
+        saveConfigBtn   % handle for "save current array configuration" button
+        numberOfReceivers   % handle for number of receivers text input
+        
+        receiverTable
+        params
+    end
+    methods
+        function obj = arrayPanel(wheresWhaledo, panelPosition, params)
+            obj.wheresWhaledo = wheresWhaledo;
+            % build panel to select array configuration
+            obj.panelHandle = uipanel('Parent', obj.wheresWhaledo.fig, 'Title', '1. Set array configuration', 'FontSize', 14, ...
+                'Position', panelPosition,  'BackgroundColor', params.colors.background);
+            obj.panelPosition = panelPosition;
+
+            obj.params.arrayTypes = {'1-ch (omni)', 'linear', 'planar', 'volumetric'};
+
+            % load array config file push button:
+            buttonPosition(1) = panelPosition(3)/2 - 120;
+            buttonPosition(2) = panelPosition(4) - 50;
+            buttonPosition(3) = 240;
+            buttonPosition(4) = 20;
+            obj.loadConfigBtn = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'load existing array configuration file', ...
+                'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
+                'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.loadConfigFile);
+            
+            uilabel('Parent', obj.panelHandle, 'text', 'number of receivers:', ...
+                'Position', [4, panelPosition(4)-80, 140, 22], 'HorizontalAlignment', 'Right', ...
+                'BackgroundColor', params.colors.background, 'FontColor', params.colors.text);
+            obj.numberOfReceivers = uieditfield(obj.panelHandle, 'numeric', ...
+                'Position', [150, panelPosition(4)-80, 30, 22], ...
+                'Value', 4, 'ValueChangedFcn', @obj.changeNumberOfReceivers);
+            
+            obj.buildReceiverTable(4);
+            
+            % save array config file push button:
+            buttonPosition(1) = panelPosition(3)/2 - 120;
+            buttonPosition(2) = 10;
+            buttonPosition(3) = 240;
+            buttonPosition(4) = 20;
+            obj.saveConfigBtn = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'save current array configuration', ...
+                'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
+                'ButtonPushedFcn', @obj.saveConfigFile);
+        end
+
+        function buildReceiverTable(obj, numReceivers)
+            hydNum = (1:numReceivers).';
+            arrayTypes = categorical(repmat({'1-ch (omni)'}, [numReceivers, 1]), ...
+                obj.params.arrayTypes);
+            xloc = zeros(size(hydNum));
+            yloc = xloc;
+            zloc = xloc;
+                            
+            recTableData = table(hydNum, arrayTypes, xloc, yloc, zloc, ...
+                'VariableNames', {'recNum', 'arrayType', 'x_m', 'y_m', 'z_m'});
+            
+            tableWidth = obj.panelPosition(3)-8;
+            obj.receiverTable = uitable(obj.panelHandle, 'Data', recTableData, ...
+                'Position', [4, obj.panelPosition(4)-80-250-4, tableWidth, 250], ...
+                'ColumnEditable',true, 'FontSize', 13, ...
+                'ColumnWidth', {tableWidth/6, tableWidth/3, tableWidth/6, tableWidth/6, tableWidth/6});
+        end
+
+        %% callback functions
+        function changeNumberOfReceivers(obj, ~, eventData)
+            if eventData.Value>eventData.PreviousValue
+                numNewReceivers = eventData.Value - eventData.PreviousValue;
+                hydNum = ((eventData.PreviousValue+1):eventData.Value).';
+                xloc = zeros(size(hydNum));
+                yloc = xloc;
+                zloc = xloc;
+                
+                arrayTypes = categorical(repmat({'1-ch (omni)'}, [numNewReceivers, 1]), ...
+                obj.params.arrayTypes);
+                
+                newRows = table(hydNum, arrayTypes, xloc, yloc, zloc, ...
+                'VariableNames',  {'recNum', 'arrayType', 'x_m', 'y_m', 'z_m'});
+                obj.receiverTable.Data = [obj.receiverTable.Data; newRows];
+            else
+                % remove receiver rows
+                obj.receiverTable.Data = obj.receiverTable.Data(1:eventData.Value, :);
+            end
+        end
+
+        function loadConfigFile(obj, ~, ~)
+            [file, location] = uigetfile('*.mat', 'Select array configuration file');
+            if isequal(file,0) || isequal(location,0)
+                % no file selected
+                fprintf('\ncanceled load\n')
+            else
+                tmp = load(fullfile(location, file));
+                if isfield(tmp, 'receiverTable')
+                    obj.numberOfReceivers.Value = height(tmp.receiverTable);
+                    obj.receiverTable.Data = tmp.receiverTable;
+                else
+                    fprintf('\nError: array configuration file is incorrect format\n')
+                end
+            end
+             figure(obj.panelHandle.Parent)
+        end
+
+        function saveConfigFile(obj, ~, ~)
+            [file, location] = uiputfile('*.mat', 'Select save location and file name', 'arrayTable');
+            if isequal(file,0) || isequal(location,0)
+                % no file selected
+                fprintf('\ncanceled save\n')
+            else
+                receiverTable = obj.receiverTable.Data;
+                save(fullfile(location, file), 'receiverTable');
+            end
+           
+        end
+    end
+end
