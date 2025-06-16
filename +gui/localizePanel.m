@@ -11,6 +11,8 @@ classdef localizePanel < handle
 
         selectModelLocationButtonHandle
         saveModelBoxHandle
+        selectLocalizationsLocationButtonHandle
+        saveLocalizationsBoxHandle
         methodDropdown
         methodPanel
         setLocalizerButtonHandle
@@ -19,6 +21,7 @@ classdef localizePanel < handle
 
         selectedMethod
         saveModelLocation
+        saveLocalizationsLocation
         settingsPanel
 
         MOD
@@ -57,12 +60,28 @@ classdef localizePanel < handle
             iconpath = fullfile(fpath, 'folder_icon.jpg');
             obj.selectModelLocationButtonHandle = uibutton(obj.panelHandle,'Icon', iconpath, 'IconAlignment', 'top', ...
                 'Position', buttonPosition, 'Tooltip', 'Browse...', 'Text', '', 'Tag', 'wav',  ...
-                'ButtonPushedFcn', @obj.selectSaveFile);
+                'ButtonPushedFcn', @obj.selectModelSaveFile);
             obj.selectModelLocationButtonHandle.InnerPosition = obj.selectModelLocationButtonHandle.InnerPosition + [0, -2, 2, 2];
+
+            % select save localizations text box:
+            boxPosition(2) = boxPosition(2) - 24;
+            obj.saveLocalizationsBoxHandle = uieditfield(obj.panelHandle, 'text', ...
+                'Placeholder', '[select localizations file+name...]', ...
+                'Position', boxPosition, 'ValueChangedFcn', @obj.populateText);
+            % select folder for wav file:
+            buttonPosition = boxPosition;
+            buttonPosition(1) = buttonPosition(1) + boxPosition(3) + 4;
+            buttonPosition(3) = 20;
+            [fpath, ~] = fileparts(mfilename('fullpath'));
+            iconpath = fullfile(fpath, 'folder_icon.jpg');
+            obj.selectLocalizationsLocationButtonHandle = uibutton(obj.panelHandle,'Icon', iconpath, 'IconAlignment', 'top', ...
+                'Position', buttonPosition, 'Tooltip', 'Browse...', 'Text', '', 'Tag', 'wav',  ...
+                'ButtonPushedFcn', @obj.selectLocalizationSaveFile);
+            obj.selectLocalizationsLocationButtonHandle.InnerPosition = obj.selectLocalizationsLocationButtonHandle.InnerPosition + [0, -2, 2, 2];
 
             % set localizer button:
             buttonPosition(1) = panelPosition(3)/2-120;
-            buttonPosition(2) = obj.saveModelBoxHandle.Position(2) - 24;
+            buttonPosition(2) = obj.saveLocalizationsBoxHandle.Position(2) - 24;
             buttonPosition(3) = 240;
             buttonPosition(4) = 20;
             obj.setLocalizerButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
@@ -76,15 +95,15 @@ classdef localizePanel < handle
             obj.settingsPanel = uipanel('Parent', obj.panelHandle, 'Position', settingsPanelPosition);
 
             % generate model button:
-            buttonPosition(2) = 10+24*2;
+            buttonPosition(2) = 10+24;
             obj.generateModelButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'generate model', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.generateModel);
 
-            % save button
-            buttonPosition(2) = 10+24*1;
-            obj.saveConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'save localization configuration file', ...
-                'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
-                'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
+%             % save button
+%             buttonPosition(2) = 10+24*1;
+%             obj.saveConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'save localization configuration file', ...
+%                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
+%                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
 
             % run localization button:
             buttonPosition(2) = 10;
@@ -117,7 +136,7 @@ classdef localizePanel < handle
             figure(obj.panelHandle.Parent)
         end
 
-        function selectSaveFile(obj, ~, ~)
+        function selectModelSaveFile(obj, ~, ~)
             [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
 
             if isequal(file,0) || isequal(location,0)
@@ -126,6 +145,19 @@ classdef localizePanel < handle
             else
                 obj.saveModelLocation = fullfile(location, file);
                 obj.saveModelBoxHandle.Value = obj.saveModelLocation;
+            end
+            figure(obj.panelHandle.Parent)
+        end
+
+        function selectLocalizationSaveFile(obj, ~, ~)
+            [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
+
+            if isequal(file,0) || isequal(location,0)
+                % no file selected
+                fprintf('\ncanceled save location select\n')
+            else
+                obj.saveLocalizationsLocation = fullfile(location, file);
+                obj.saveLocalizationsBoxHandle.Value = obj.saveLocalizationsLocation;
             end
             figure(obj.panelHandle.Parent)
         end
@@ -152,12 +184,11 @@ classdef localizePanel < handle
             if isempty(obj.saveModelLocation)
                 obj.saveModelLocation = [pwd, '\localizationModel.mat'];
             end
-            
             obj.localizer.prepare(obj.saveModelLocation)
         end
 
         function runLocalizer(obj, ~, ~)
-            obj.detector.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
+            obj.localizer.run
         end
     end
 end

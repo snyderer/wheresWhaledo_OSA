@@ -57,18 +57,129 @@ classdef gridSearch < handle
             obj.userParams.zSpacing_m.type = 'numerical';
             obj.userParams.zSpacing_m.description = 'maximum Y value [m]';
 
+            obj.userParams.soundSpeed_mps.value = 1500;
+            obj.userParams.soundSpeed_mps.type = 'numerical';
+            obj.userParams.soundSpeed_mps.description = 'average sound speed in meters per second';
+
+            obj.userParams.windowLength.value = 1;
+            obj.userParams.windowLength.type = 'numerical';
+            obj.userParams.windowLength.description = 'length of window for smoothing [s]. =0 means no smoothing.';
+
+            obj.userParams.sigma.value = 10;
+            obj.userParams.sigma.type = 'numerical';
+            obj.userParams.sigma.description = 'Standand dev. of hydrophone positions [m]';
         end
 
+        function defineInternalParams(obj)
+            obj.internalParams.maxModelInActiveMemory_kb = 50e3; % maximum size of file in active memory at a given time in kilobytes
+            obj.DET = obj.wheresWhaledo.detectorPanel.DET;
+        end
         function prepare(obj, saveLoc)
+            % the prepare function builds a model or sets and saves the
+            % parameters required for localization.
             
+            obj.defineInternalParams
+
+            % build x,t,z grid:
+            obj.MOD.x_m = obj.userParams.xmin_m:obj.userParams.xSpacing_m:obj.userParams.xmax_m;
+            obj.MOD.y_m = obj.userParams.ymin_m:obj.userParams.ySpacing_m:obj.userParams.ymax_m;
+            obj.MOD.z_m = obj.userParams.zmin_m:obj.userParams.zSpacing_m:obj.userParams.zmax_m;
             
-            ok =1;
+            obj.internalParams.Ngridpoints = length(obj.MOD.x_m)*length(obj.MOD.y_m)*length(obj.MOD.z_m);
+
+            obj.MOD.recloc_m = [obj.wheresWhaledo.arrayPanel.receiverTable.Data.x_m, ...
+                obj.wheresWhaledo.arrayPanel.receiverTable.Data.y_m, ...
+                obj.wheresWhaledo.arrayPanel.receiverTable.Data.z_m];
+
+            obj.internalParams.Nrec = size(obj.MOD.recloc_m, 1);
+
+            % determine hydrophone pairs:
+            obj.internalParams.NhydPairs = nchoosek(obj.internalParams.Nrec, 2); % number of unique hydrophone pairs
+            obj.MOD.hydPairs = zeros(obj.internalParams.NhydPairs, 2);
+            ipair = 0;
+            for ih1 = 1:obj.internalParams.Nrec-1
+                for ih2 = ih1+1:obj.internalParams.Nrec
+                    ipair = ipair+1;
+                    obj.MOD.hydPairs(ipair, :) = [ih1, ih2];
+                end
+            end
+            
+            if obj.internalParams.Ngridpoints < obj.internalParams.maxModelInActiveMemory_kb*8000
+                % whole model can be in active memory
+                [x, y, z] = ndgrid(obj.MOD.x_m, obj.MOD.y_m, obj.MOD.z_m); 
+                obj.MOD.grid = [x(:), y(:), z(:)];
+                
+                % estimate TDOAs:
+                R = zeros(obj.internalParams.Ngridpoints, obj.internalParams.Nrec);
+                for ir = 1:obj.internalParams.Nrec
+                    R(:, ir) = sqrt(sum((obj.MOD.grid-obj.MOD.recloc_m(ir, :)).^2, 2));
+                end
+                obj.MOD.TDOA = zeros(obj.internalParams.Ngridpoints, obj.internalParams.NhydPairs);
+                for itdoa = 1:obj.internalParams.NhydPairs
+                    obj.MOD.TDOA(:, itdoa) = (R(:, obj.MOD.hydPairs(itdoa, 1)) - R(:, obj.MOD.hydPairs(itdoa, 2)))./obj.userParams.soundSpeed_mps;
+                end
+                MOD = obj.MOD;
+                save(obj.wheresWhaledo.localizePanel.saveModelLocation, 'MOD')
+            else
+                % model must be built, saved, and loaded in smaller sections
+                % TO DO
+                fprintf('LARGE MODEL COMPATIBILITY NOT COMPLETE\n Please reduce model size and try again')
+            end
         end
         function run(obj)
-            if isempty(obj.MOD)
-                obj.prepare
+            if isempty(obj.MOD) % if model hasn't been generated, make one
+                if exist(obj.wheresWhaledo.localizePanel.saveModelLocation, 'file')
+                    load(obj.wheresWhaledo.localizePanel.saveModelLocation) % load existing model
+                    % to do! if model is too large, only load segments
+                else
+                    obj.prepare
+                end
             end
+            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .001^2);
 
+            whaleNums = unique(obj.DET.label(obj.DET.label>0));
+            for iw = 1:length(whaleNums)
+                DETidx = find(obj.DET.label==whaleNums(iw));
+                [~, tmp] = unique(obj.DET.TDet(DETidx));
+                DETidx = DETidx(tmp);
+                
+                
+
+                Ndet = length(DETidx);
+                obj.LOC{iw} = obj.DET(DETidx, :);
+                obj.LOC{iw}.x_m = nan(Ndet, 1);
+                obj.LOC{iw}.y_m = nan(Ndet, 1);
+                obj.LOC{iw}.z_m = nan(Ndet, 1);
+                obj.LOC{iw}.CI95_x = nan(Ndet, 2);
+                obj.LOC{iw}.CI95_y = nan(Ndet, 2);
+                obj.LOC{iw}.CI95_z = nan(Ndet, 2);
+
+                switch obj.userParams.windowLength
+                    case 0 % no interpolation
+                        obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
+                    case 1 % replace nans with nearest neighbor
+                        obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
+                        for itdoa = 1:obj.internalParams.NhydPairs
+                            idxNotNan = ~isnan(obj.LOC{iw}.TDOA(:, itdoa));
+                            obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
+                                obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
+                        end
+                    otherwise % smooth with moving average
+                        obj.LOC{iw}.TDOAi = movmean(obj.LOC{iw}.TDOA, obj.userParams.smoothWindowLength, 'omitnan');
+                end
+                for idet = 1:Ndet
+                    numNotNan = sum(~isnan(obj.LOC{iw}.TDOAi(idet, :)));
+                    err = sum((obj.MOD.TDOA - obj.LOC{iw}.TDOAi(idet, :)).^2, 2);
+                    L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
+                    [maxL, idxMax] = max(L);
+
+                    LOC{iw}.loc(i, :) = obj.MOD.grid(idxMax, :);
+
+                    idxX = find((obj.MOD.grid()));
+                    ok = 1;
+                end
+
+            end
         end
     end
 end
