@@ -45,11 +45,11 @@ classdef gridSearch < handle
             obj.userParams.ySpacing_m.type = 'numerical';
             obj.userParams.ySpacing_m.description = 'y grid spacing [m]';
 
-            obj.userParams.zmin_m.value = 5;
+            obj.userParams.zmin_m.value = 20;
             obj.userParams.zmin_m.type = 'numerical';
             obj.userParams.zmin_m.description = 'minimum x value';
 
-            obj.userParams.zmax_m.value = 1000;
+            obj.userParams.zmax_m.value = 20;
             obj.userParams.zmax_m.type = 'numerical';
             obj.userParams.zmax_m.description = 'maximum x value';
 
@@ -63,7 +63,7 @@ classdef gridSearch < handle
 
             obj.userParams.windowLength.value = 1;
             obj.userParams.windowLength.type = 'numerical';
-            obj.userParams.windowLength.description = 'length of window for smoothing [s]. =0 means no smoothing.';
+            obj.userParams.windowLength.description = 'length of window for smoothing [samples]. =0 means no smoothing.';
 
             obj.userParams.sigma.value = 10;
             obj.userParams.sigma.type = 'numerical';
@@ -74,7 +74,7 @@ classdef gridSearch < handle
             obj.internalParams.maxModelInActiveMemory_kb = 50e3; % maximum size of file in active memory at a given time in kilobytes
             obj.DET = obj.wheresWhaledo.detectorPanel.DET;
         end
-        function prepare(obj, saveLoc)
+        function [MOD] = prepare(obj, saveLoc)
             % the prepare function builds a model or sets and saves the
             % parameters required for localization.
             
@@ -126,7 +126,7 @@ classdef gridSearch < handle
                 fprintf('LARGE MODEL COMPATIBILITY NOT COMPLETE\n Please reduce model size and try again')
             end
         end
-        function run(obj)
+        function LOC = run(obj)
             if isempty(obj.MOD) % if model hasn't been generated, make one
                 if exist(obj.wheresWhaledo.localizePanel.saveModelLocation, 'file')
                     load(obj.wheresWhaledo.localizePanel.saveModelLocation) % load existing model
@@ -135,7 +135,7 @@ classdef gridSearch < handle
                     obj.prepare
                 end
             end
-            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .001^2);
+            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .01^2);
 
             whaleNums = unique(obj.DET.label(obj.DET.label>0));
             for iw = 1:length(whaleNums)
@@ -165,7 +165,13 @@ classdef gridSearch < handle
                                 obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
                         end
                     otherwise % smooth with moving average
-                        obj.LOC{iw}.TDOAi = movmean(obj.LOC{iw}.TDOA, obj.userParams.smoothWindowLength, 'omitnan');
+                        obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
+                        for itdoa = 1:obj.internalParams.NhydPairs
+                            idxNotNan = ~isnan(obj.LOC{iw}.TDOA(:, itdoa));
+                            obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
+                                obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
+                            obj.LOC{iw}.TDOAi(:, itdoa) = movmean(obj.LOC{iw}.TDOAi(:, itdoa), obj.userParams.windowLength, 'omitnan');
+                        end
                 end
                 for idet = 1:Ndet
                     numNotNan = sum(~isnan(obj.LOC{iw}.TDOAi(idet, :)));
@@ -173,7 +179,9 @@ classdef gridSearch < handle
                     L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
                     [~, idxMax] = max(L);
 
-                    obj.LOC{iw}.loc(idet, :) = obj.MOD.grid(idxMax, :);
+                    obj.LOC{iw}.x_m(idet, :) = obj.MOD.grid(idxMax, 1);
+                    obj.LOC{iw}.y_m(idet, :) = obj.MOD.grid(idxMax, 2);
+                    obj.LOC{iw}.z_m(idet, :) = obj.MOD.grid(idxMax, 3);
 
                     idxX = (obj.MOD.grid(:, 2)==obj.MOD.grid(idxMax, 2)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
                     idxY = (obj.MOD.grid(:, 1)==obj.MOD.grid(idxMax, 1)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
@@ -194,7 +202,6 @@ classdef gridSearch < handle
                     obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), nan]);
                     obj.LOC{iw}.CI95_z(idet, 2) = max([obj.MOD.z_m(Cz<=.975), nan]);
                 end
-
             end
             LOC = obj.LOC;
             save(obj.wheresWhaledo.localizePanel.saveLocalizationsLocation, "LOC")

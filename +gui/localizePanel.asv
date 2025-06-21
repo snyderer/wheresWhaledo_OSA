@@ -64,7 +64,7 @@ classdef localizePanel < handle
             obj.selectModelLocationButtonHandle.InnerPosition = obj.selectModelLocationButtonHandle.InnerPosition + [0, -2, 2, 2];
 
             % select save localizations text box:
-            boxPosition(2) = boxPosition(2) - 40;
+            boxPosition(2) = boxPosition(2) - 24;
             obj.saveLocalizationsBoxHandle = uieditfield(obj.panelHandle, 'text', ...
                 'Placeholder', '[select localizations file+name...]', ...
                 'Position', boxPosition, 'ValueChangedFcn', @obj.populateText);
@@ -95,15 +95,15 @@ classdef localizePanel < handle
             obj.settingsPanel = uipanel('Parent', obj.panelHandle, 'Position', settingsPanelPosition);
 
             % generate model button:
-            buttonPosition(2) = 10+24*2;
+            buttonPosition(2) = 10+24;
             obj.generateModelButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'generate model', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.generateModel);
 
-            % save button
-            buttonPosition(2) = 10+24*1;
-            obj.saveConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'save localization configuration file', ...
-                'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
-                'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
+%             % save button
+%             buttonPosition(2) = 10+24*1;
+%             obj.saveConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'save localization configuration file', ...
+%                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
+%                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
 
             % run localization button:
             buttonPosition(2) = 10;
@@ -157,7 +157,7 @@ classdef localizePanel < handle
                 fprintf('\ncanceled save location select\n')
             else
                 obj.saveLocalizationsLocation = fullfile(location, file);
-                obj.saveLocalizationBoxHandle.Value = obj.saveModelLocation;
+                obj.saveLocalizationsBoxHandle.Value = obj.saveLocalizationsLocation;
             end
             figure(obj.panelHandle.Parent)
         end
@@ -180,16 +180,65 @@ classdef localizePanel < handle
         end
 
         function generateModel(obj, ~, ~)
+            wb = waitbar(.25, 'Generating Model/Preparing for Localization');
             obj.localizer.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
             if isempty(obj.saveModelLocation)
                 obj.saveModelLocation = [pwd, '\localizationModel.mat'];
             end
-            
-            obj.localizer.prepare(obj.saveModelLocation)
+            obj.MOD = obj.localizer.prepare(obj.saveModelLocation);
+            waitbar(1, wb, 'Model Generation Complete!')
+            pause(.3)
+            close(wb)
+        end
+        
+        function makeCSV(obj)
+            for iw = 1:numel(obj.LOC)
+                idx = ~isnan(obj.LOC{iw});
+                LOC.TDet = obj.LOC{iw}.TDet(idx);
+                LOC.label = obj.LOC{iw}.label(idx);
+                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.z_m = obj.LOC{iw}.z_m(idx);
+                LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
+                LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);
+                LOC.CI95_y_lo = obj.LOC{iw}.CI95_y(idx, 1);
+                LOC.CI95_y_hi = obj.LOC{iw}.CI95_y(idx, 2);
+                LOC.CI95_z_lo = obj.LOC{iw}.CI95_z(idx, 1);
+                LOC.CI95_z_hi = obj.LOC{iw}.CI95_z(idx, 2);
+                
+                for itdoa = 1:size(obj.MOD.hydPairs, 1)
+                    str = sprintf('TDOA_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.TDOA(idx, itdoa);
+
+                    str = sprintf('TDOAi_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.TDOAi(idx, itdoa);
+
+                    str = sprintf('XAmp_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
+                end
+                save('')
+            end
+
         end
 
+        function makePlot(obj)
+            
+        end
+
+        function makeVideo(obj)
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, [obj.saveLocalizationsLocation(1:end-3), '.mp4'])
+        end
         function runLocalizer(obj, ~, ~)
-            obj.detector.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
+            wb = waitbar(.25, 'Localizing');
+            obj.LOC = obj.localizer.run;
+            waitbar(.6, wb, ['Saving CSV to ', obj.saveLocalizationsLocation(1:end-3)]);
+            obj.makeCSV
+            waitbar(.75, wb, ['Generating and writing video to  ', obj.saveLocalizationsLocation(1:end-3), '.mp4']);
+            obj.makeVideo
+
+            waitbar(1, wb, 'Localization Complete!')
+            pause(.3)
+            close(wb)
         end
     end
 end

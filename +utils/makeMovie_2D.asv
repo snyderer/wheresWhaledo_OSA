@@ -1,4 +1,4 @@
-function errorMessage = makeMovie_2D(LOC, hydLoc, saveFileName, speedUpRate, params)
+function errorMessage = makeMovie_2D(whaleTable, hydLoc, saveFileName, speedUpRate, params)
 % makeMovie(whaleTable, hydLoc, saveFileName)
 % makeMovie(whaleTable,  hydLoc, saveFileName, speedUpRate)
 % makeMovie(whaleTable,  hydLoc, saveFileName, speedUpRate, cameraAngle, cameraAngle_timeStamps)
@@ -29,13 +29,13 @@ if nargin<5
         0.890196, 0.101961, 0.109804]; % whale 9
 end
 errorMessage = [];
-numWhales = numel(LOC);
+numWhales = numel(whaleTable);
 
 TDet_min = nan;
 TDet_max = nan;
-for iw = 1:numel(LOC)
-    TDet_min = min([TDet_min, min(LOC{iw}.TDet)]);
-    TDet_max = max([TDet_max, max(LOC{iw}.TDet)]);
+for iw = 1:numel(whaleTable)
+    TDet_min = min([TDet_min, min(whaleTable{iw}.TDet)]);
+    TDet_max = max([TDet_max, max(whaleTable{iw}.TDet)]);
 end
 
 frameRate = 10;
@@ -52,46 +52,46 @@ CI95_x_hi = x;
 CI95_y_lo = x;
 CI95_y_hi = x;
 
-if any(strcmp(LOC{1}.Properties.VariableNames, 'x_m'))
-    for iw = 1:numel(LOC)
-        x(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.x_m, T, 'nearest');
-        y(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.y_m, T, 'nearest');
+if any(strcmp(whaleTable{1}.Properties.VariableNames, 'loc_x'))
+    for iw = 1:numel(whaleTable)
+        x(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_x, T, 'nearest');
+        y(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_y, T, 'nearest');
                 
-        if any(strcmp(LOC{1}.Properties.VariableNames, 'x_m_smooth'))
-            xsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.x_m_smooth, T);
-            ysm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.y_m_smooth, T);
+        if any(strcmp(whaleTable{1}.Properties.VariableNames, 'loc_x_smooth'))
+            xsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_x_smooth, T);
+            ysm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_y_smooth, T);
         else
-            xsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.x_m, T, 'linear');
-            ysm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.y_m, T, 'linear');
+            xsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_x, T, 'linear');
+            ysm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_y, T, 'linear');
         end
 
-        CI95_x_lo(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_x(:, 1), T, 'nearest');
-        CI95_x_hi(:, iw) = interp1(LOC{iw}.TDet,  LOC{iw}.CI95_x(:, 2), T, 'nearest');
+        CI95_x_lo(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_x_lo, T, 'nearest');
+        CI95_x_hi(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_x_hi, T, 'nearest');
 
-        CI95_y_lo(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_y(:, 1), T, 'nearest');
-        CI95_y_hi(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_y(:, 2), T, 'nearest');
+        CI95_y_lo(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_y_lo, T, 'nearest');
+        CI95_y_hi(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_y_hi, T, 'nearest');
     end
-elseif any(strcmp(LOC{1}.Properties.VariableNames, 'loc'))
-    for iw = 1:numel(LOC)
-        x(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 1), T, 'nearest');
-        y(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 2), T, 'nearest');
-        z(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 3), T, 'nearest');
+elseif any(strcmp(whaleTable{1}.Properties.VariableNames, 'loc'))
+    for iw = 1:numel(whaleTable)
+        x(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.x_m), T, 'nearest');
+        y(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.y_m, T, 'nearest');
+        z(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc(:,3), T, 'nearest');
 
-        if any(strcmp(LOC{1}.Properties.VariableNames, 'loc_smooth'))
-            xsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.x_m_smooth, T);
-            ysm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.y_m_smooth, T);
-            zsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.z_m_smooth, T);
+        if any(strcmp(whaleTable{1}.Properties.VariableNames, 'loc_smooth'))
+            xsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_smooth(:, 1), T);
+            ysm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_smooth(:, 2), T);
+            zsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc_smooth(:, 3), T);
         else
-            xsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 1), T, 'linear');
-            ysm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 2), T, 'linear');
-            zsm(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.loc(:, 3), T, 'linear');
+            xsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc(:, 1), T, 'linear');
+            ysm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc(:, 2), T, 'linear');
+            zsm(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.loc(:, 3), T, 'linear');
         end
 
-        CI95_x_lo(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_x(:,1), T, 'nearest');
-        CI95_x_hi(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_x(:,2), T, 'nearest');
+        CI95_x_lo(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_x(:,1), T, 'nearest');
+        CI95_x_hi(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_x(:,2), T, 'nearest');
 
-        CI95_y_lo(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_y(:,1), T, 'nearest');
-        CI95_y_hi(:, iw) = interp1(LOC{iw}.TDet, LOC{iw}.CI95_y(:,2), T, 'nearest');
+        CI95_y_lo(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_y(:,1), T, 'nearest');
+        CI95_y_hi(:, iw) = interp1(whaleTable{iw}.TDet, whaleTable{iw}.CI95_y(:,2), T, 'nearest');
     end
 else
     warning('invalid input format')

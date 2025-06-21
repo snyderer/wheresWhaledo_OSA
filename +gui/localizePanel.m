@@ -180,15 +180,71 @@ classdef localizePanel < handle
         end
 
         function generateModel(obj, ~, ~)
+            wb = waitbar(.25, 'Generating Model/Preparing for Localization');
             obj.localizer.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
             if isempty(obj.saveModelLocation)
                 obj.saveModelLocation = [pwd, '\localizationModel.mat'];
             end
-            obj.localizer.prepare(obj.saveModelLocation)
+            obj.MOD = obj.localizer.prepare(obj.saveModelLocation);
+            waitbar(1, wb, 'Model Generation Complete!')
+            pause(.3)
+            close(wb)
+        end
+        
+        function makeCSV(obj)
+            for iw = 1:numel(obj.LOC)
+                LOC = table;
+                idx = ~isnan(obj.LOC{iw}.x_m);
+                LOC.TDet = obj.LOC{iw}.TDet(idx);
+                LOC.label = obj.LOC{iw}.label(idx);
+                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.z_m = obj.LOC{iw}.z_m(idx);
+                LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
+                LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);
+                LOC.CI95_y_lo = obj.LOC{iw}.CI95_y(idx, 1);
+                LOC.CI95_y_hi = obj.LOC{iw}.CI95_y(idx, 2);
+                LOC.CI95_z_lo = obj.LOC{iw}.CI95_z(idx, 1);
+                LOC.CI95_z_hi = obj.LOC{iw}.CI95_z(idx, 2);
+                
+                for itdoa = 1:size(obj.MOD.hydPairs, 1)
+                    str = sprintf('TDOA_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.TDOA(idx, itdoa);
+
+                    str = sprintf('TDOAi_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.TDOAi(idx, itdoa);
+
+                    str = sprintf('XAmp_%i%i', obj.MOD.hydPairs(itdoa, :));
+                    LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
+                end
+                [savepath,savename,~] = fileparts(obj.saveModelLocation);
+                saveloc = fullfile(savepath, [savename, '.csv']);
+               
+                writetable(LOC, saveloc)
+            end
+
         end
 
+        function makePlot(obj)
+            
+        end
+
+        function makeVideo(obj)
+            [savepath,savename,~] = fileparts(obj.saveModelLocation);
+            saveloc = fullfile(savepath, [savename, '.mp4']);
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc)
+        end
         function runLocalizer(obj, ~, ~)
-            obj.localizer.run
+            wb = waitbar(.25, 'Localizing');
+            obj.LOC = obj.localizer.run;
+            waitbar(.6, wb, ['Saving CSV to ', obj.saveLocalizationsLocation(1:end-3)]);
+            obj.makeCSV
+            waitbar(.75, wb, ['Generating and writing video to  ', obj.saveLocalizationsLocation(1:end-3), '.mp4']);
+            obj.makeVideo
+
+            waitbar(1, wb, 'Localization Complete!')
+            pause(.3)
+            close(wb)
         end
     end
 end
