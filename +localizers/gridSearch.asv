@@ -135,7 +135,7 @@ classdef gridSearch < handle
                     obj.prepare
                 end
             end
-            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .001^2);
+            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .01^2);
 
             whaleNums = unique(obj.DET.label(obj.DET.label>0));
             for iw = 1:length(whaleNums)
@@ -179,7 +179,9 @@ classdef gridSearch < handle
                     L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
                     [~, idxMax] = max(L);
 
-                    obj.LOC{iw}.loc(idet, :) = obj.MOD.grid(idxMax, :);
+                    obj.LOC{iw}.x_m(idet, :) = obj.MOD.grid(idxMax, 1);
+                    obj.LOC{iw}.y_m(idet, :) = obj.MOD.grid(idxMax, 2);
+                    obj.LOC{iw}.z_m(idet, :) = obj.MOD.grid(idxMax, 3);
 
                     idxX = (obj.MOD.grid(:, 2)==obj.MOD.grid(idxMax, 2)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
                     idxY = (obj.MOD.grid(:, 1)==obj.MOD.grid(idxMax, 1)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
@@ -200,8 +202,11 @@ classdef gridSearch < handle
                     obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), nan]);
                     obj.LOC{iw}.CI95_z(idet, 2) = max([obj.MOD.z_m(Cz<=.975), nan]);
                 end
+                obj.LOC{iw}
             end
+            
             LOC = obj.LOC;
+            
             save(obj.wheresWhaledo.localizePanel.saveLocalizationsLocation, "LOC")
         end
     end

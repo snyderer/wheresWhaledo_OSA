@@ -21,27 +21,27 @@ classdef gridSearch < handle
             % This function will be called by localizePanel to make a table
             % of parameters the user needs to set to run this localizer.
 
-            obj.userParams.xmin_m.value = -4000;
+            obj.userParams.xmin_m.value = -2000;
             obj.userParams.xmin_m.type = 'numerical';
             obj.userParams.xmin_m.description = 'minimum x value [m]';
 
-            obj.userParams.xmax_m.value = 4000;
+            obj.userParams.xmax_m.value = 2000;
             obj.userParams.xmax_m.type = 'numerical';
             obj.userParams.xmax_m.description = 'maximum x value [m]';
 
-            obj.userParams.xSpacing_m.value = 50;
+            obj.userParams.xSpacing_m.value = 20;
             obj.userParams.xSpacing_m.type = 'numerical';
             obj.userParams.xSpacing_m.description = 'x grid spacing [m]';
 
-            obj.userParams.ymin_m.value = -4000;
+            obj.userParams.ymin_m.value = -2000;
             obj.userParams.ymin_m.type = 'numerical';
             obj.userParams.ymin_m.description = 'minimum y value [m]';
 
-            obj.userParams.ymax_m.value = 4000;
+            obj.userParams.ymax_m.value = 2000;
             obj.userParams.ymax_m.type = 'numerical';
             obj.userParams.ymax_m.description = 'maximum y value [m]';
 
-            obj.userParams.ySpacing_m.value = 50;
+            obj.userParams.ySpacing_m.value = 20;
             obj.userParams.ySpacing_m.type = 'numerical';
             obj.userParams.ySpacing_m.description = 'y grid spacing [m]';
 
@@ -196,14 +196,16 @@ classdef gridSearch < handle
                     Cz = cumsum(Lz)./sum(Lz);
 
                     obj.LOC{iw}.CI95_x(idet, 1) = max([obj.MOD.x_m(Cx<=.025), nan]);
-                    obj.LOC{iw}.CI95_x(idet, 2) = max([obj.MOD.x_m(Cx<=.975), nan]);
+                    obj.LOC{iw}.CI95_x(idet, 2) = min([obj.MOD.x_m(Cx>=.975), nan]);
                     obj.LOC{iw}.CI95_y(idet, 1) = max([obj.MOD.y_m(Cy<=.025), nan]);
-                    obj.LOC{iw}.CI95_y(idet, 2) = max([obj.MOD.y_m(Cy<=.975), nan]);
+                    obj.LOC{iw}.CI95_y(idet, 2) = min([obj.MOD.y_m(Cy>=.975), nan]);
                     obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), nan]);
-                    obj.LOC{iw}.CI95_z(idet, 2) = max([obj.MOD.z_m(Cz<=.975), nan]);
+                    obj.LOC{iw}.CI95_z(idet, 2) = min([obj.MOD.z_m(Cz>=.975), nan]);
                 end
             end
+            
             LOC = obj.LOC;
+            
             save(obj.wheresWhaledo.localizePanel.saveLocalizationsLocation, "LOC")
         end
     end
