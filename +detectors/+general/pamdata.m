@@ -82,6 +82,11 @@ classdef pamdata < handle
             % wavfile is the file name and path to the wav file currently
             % being processed
 
+            if isempty(obj.userParams.PAMfileLocation)
+                fprintf('No PAM file provided. Enter path to PAM file')
+                return
+            end
+
             if isempty(obj.internalParams) % internal params have not been set
                 obj.setInternalParams
             end

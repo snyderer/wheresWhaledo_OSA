@@ -245,21 +245,29 @@ classdef detectorPanel < handle
             G = utils.buildUserParamsGrid(obj.settingsPanel, obj.detector);
         end
         function runDetector(obj, ~, ~)
+            wb = waitbar(.0, 'Initializing detector ...');
             obj.detector.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
             
             if obj.runOnDirectoryCheckbox.Value
                 [wavpath, ~] = fileparts(obj.wavFile);
                 d = dir(fullfile(wavpath, '*.wav'));
+                waitbar(.5/numel(d), wb, sprintf('detecting on %i of %i wav files', 1, numel(d)));
                 obj.DET = obj.detector.run(fullfile(d(1).folder, d(1).name));
                 for i = 2:numel(d)
+                    waitbar((i-.5)/numel(d), wb, sprintf('detecting on %i of %i wav files', i, numel(d)));
                     det = obj.detector.run(fullfile(d(i).folder, d(i).name));
                     obj.DET = [obj.DET; det];
                 end
             else
+                waitbar(.3, wb, 'detecting on 1/1 wav files ...');
                 obj.DET = obj.detector.run(obj.wavFile);
             end
+            waitbar(.95, wb, 'saving DET file ...');
             DET = obj.DET;
             save(obj.saveFile, 'DET')
+            waitbar(1, wb, 'Detector complete');
+            pause(.5)
+            close(wb)
         end
     end
 end
