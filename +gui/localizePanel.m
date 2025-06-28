@@ -137,7 +137,7 @@ classdef localizePanel < handle
         end
 
         function selectModelSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select name and location to save model', [obj.selectedMethod(1:end-2), '.mat']);
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
@@ -150,7 +150,7 @@ classdef localizePanel < handle
         end
 
         function selectLocalizationSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select name and location to save localizations',  'localizations.mat');
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
@@ -217,7 +217,7 @@ classdef localizePanel < handle
                     str = sprintf('XAmp_%i%i', obj.MOD.hydPairs(itdoa, :));
                     LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
                 end
-                [savepath,savename,~] = fileparts(obj.saveModelLocation);
+                [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
                 saveloc = fullfile(savepath, [savename, '.csv']);
                
                 writetable(LOC, saveloc)
