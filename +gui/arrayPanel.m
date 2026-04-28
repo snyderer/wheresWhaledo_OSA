@@ -7,7 +7,8 @@ classdef arrayPanel < handle
         loadConfigBtn   % handle for "load existing array configuration file" button
         saveConfigBtn   % handle for "save current array configuration" button
         numberOfReceivers   % handle for number of receivers text input
-        
+        latLonButtons   % array of handles for lat/lon entry buttons
+
         receiverTable
         params
     end
@@ -15,11 +16,12 @@ classdef arrayPanel < handle
         function obj = arrayPanel(wheresWhaledo, panelPosition, params)
             obj.wheresWhaledo = wheresWhaledo;
             % build panel to select array configuration
-            obj.panelHandle = uipanel('Parent', obj.wheresWhaledo.fig, 'Title', '1. Set array configuration', 'FontSize', 14, ...
+            obj.panelHandle = uipanel('Parent', obj.wheresWhaledo.fig, ...
+                'Title', '1. Set array configuration', 'FontSize', 14, ...
                 'Position', panelPosition,  'BackgroundColor', params.colors.background);
             obj.panelPosition = panelPosition;
 
-            obj.params.arrayTypes = {'1-ch (omni)', 'linear', 'planar', 'volumetric'};
+            obj.params.arrayTypes = {'1-ch (omni)'}% TODO add : 'linear', 'planar', 'volumetric';
 
             % load array config file push button:
             buttonPosition(1) = panelPosition(3)/2 - 120;

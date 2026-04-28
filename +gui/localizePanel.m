@@ -230,7 +230,7 @@ classdef localizePanel < handle
         end
 
         function makeVideo(obj)
-            [savepath,savename,~] = fileparts(obj.saveModelLocation);
+            [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
             saveloc = fullfile(savepath, [savename, '.mp4']);
             utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc)
         end

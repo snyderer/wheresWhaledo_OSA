@@ -136,6 +136,11 @@ classdef gridSearch < handle
                 end
             end
             sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .01^2);
+            
+            if isempty(obj.DET.label)
+                print('Cannot localize. \nNo detections found.')
+                return
+            end
 
             whaleNums = unique(obj.DET.label(obj.DET.label>0));
             for iw = 1:length(whaleNums)

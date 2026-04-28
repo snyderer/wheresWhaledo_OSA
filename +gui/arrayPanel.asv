@@ -1,25 +1,27 @@
 classdef arrayPanel < handle
     properties
-%         WW              % handle to Where's Whaledo object
+        wheresWhaledo              % handle to Where's Whaledo object
         panelHandle     % handle for array panel within Where's Whaledo interface
         panelPosition
 
         loadConfigBtn   % handle for "load existing array configuration file" button
         saveConfigBtn   % handle for "save current array configuration" button
         numberOfReceivers   % handle for number of receivers text input
-        
+        latLonButtons   % array of handles for lat/lon entry buttons
+
         receiverTable
         params
     end
     methods
-        function obj = arrayPanel(parentHandle, panelPosition, params)
-%             obj.WW = wheresWhaledo;
+        function obj = arrayPanel(wheresWhaledo, panelPosition, params)
+            obj.wheresWhaledo = wheresWhaledo;
             % build panel to select array configuration
-            obj.panelHandle = uipanel('Parent', parentHandle, 'Title', '1. Set array configuration', 'FontSize', 14, ...
+            obj.panelHandle = uipanel('Parent', obj.wheresWhaledo.fig, ...
+                'Title', '1. Set array configuration', 'FontSize', 14, ...
                 'Position', panelPosition,  'BackgroundColor', params.colors.background);
             obj.panelPosition = panelPosition;
 
-            obj.params.arrayTypes = {'1-ch (omni)', 'linear', 'planar', 'volumetric'};
+            obj.params.arrayTypes = {'1-ch (omni)'}% TODO add : 'linear', 'planar', 'volumetric';
 
             % load array config file push button:
             buttonPosition(1) = panelPosition(3)/2 - 120;
@@ -30,7 +32,7 @@ classdef arrayPanel < handle
                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.loadConfigFile);
             
-            lbl = uilabel('Parent', obj.panelHandle, 'text', 'number of receivers:', ...
+            uilabel('Parent', obj.panelHandle, 'text', 'number of receivers:', ...
                 'Position', [4, panelPosition(4)-80, 140, 22], 'HorizontalAlignment', 'Right', ...
                 'BackgroundColor', params.colors.background, 'FontColor', params.colors.text);
             obj.numberOfReceivers = uieditfield(obj.panelHandle, 'numeric', ...
@@ -102,6 +104,7 @@ classdef arrayPanel < handle
                     fprintf('\nError: array configuration file is incorrect format\n')
                 end
             end
+             figure(obj.panelHandle.Parent)
         end
 
         function saveConfigFile(obj, ~, ~)
@@ -113,6 +116,7 @@ classdef arrayPanel < handle
                 receiverTable = obj.receiverTable.Data;
                 save(fullfile(location, file), 'receiverTable');
             end
+           
         end
     end
 end
