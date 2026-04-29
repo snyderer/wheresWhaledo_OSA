@@ -41,6 +41,7 @@ classdef localizePanel < handle
             obj.loadConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'load existing model/method', ...
                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.loadConfig);
+            obj.loadConfigButtonHandle.Enable = 'off';
 
             obj.buildMethodDropdown
 
@@ -95,7 +96,7 @@ classdef localizePanel < handle
             obj.settingsPanel = uipanel('Parent', obj.panelHandle, 'Position', settingsPanelPosition);
 
             % generate model button:
-            buttonPosition(2) = 10+24;
+            buttonPosition(2) = 28;
             obj.generateModelButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'generate model', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.generateModel);
 
@@ -106,7 +107,7 @@ classdef localizePanel < handle
 %                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
 
             % run localization button:
-            buttonPosition(2) = 10;
+            buttonPosition(2) = 4;
             obj.runLocalizerButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'run localization', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.runLocalizer);
         end

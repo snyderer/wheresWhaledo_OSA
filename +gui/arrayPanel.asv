@@ -7,21 +7,25 @@ classdef arrayPanel < handle
         loadConfigBtn   % handle for "load existing array configuration file" button
         saveConfigBtn   % handle for "save current array configuration" button
         numberOfReceivers   % handle for number of receivers text input
+        unitsToggleGroup    % handle for toggle between meters and lat/lon
         latLonButtons   % array of handles for lat/lon entry buttons
 
         receiverTable
+        gridOriginLatEdit
+        gridOriginLonEdit
         params
     end
     methods
         function obj = arrayPanel(wheresWhaledo, panelPosition, params)
             obj.wheresWhaledo = wheresWhaledo;
+
             % build panel to select array configuration
             obj.panelHandle = uipanel('Parent', obj.wheresWhaledo.fig, ...
                 'Title', '1. Set array configuration', 'FontSize', 14, ...
                 'Position', panelPosition,  'BackgroundColor', params.colors.background);
             obj.panelPosition = panelPosition;
 
-            obj.params.arrayTypes = {'1-ch (omni)'}% TODO add : 'linear', 'planar', 'volumetric';
+            obj.params.arrayTypes = {'1-ch (omni)'};% TODO add : 'linear', 'planar', 'volumetric';
 
             % load array config file push button:
             buttonPosition(1) = panelPosition(3)/2 - 120;
@@ -31,16 +35,39 @@ classdef arrayPanel < handle
             obj.loadConfigBtn = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'load existing array configuration file', ...
                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.loadConfigFile);
-            
+
             uilabel('Parent', obj.panelHandle, 'text', 'number of receivers:', ...
                 'Position', [4, panelPosition(4)-80, 140, 22], 'HorizontalAlignment', 'Right', ...
                 'BackgroundColor', params.colors.background, 'FontColor', params.colors.text);
             obj.numberOfReceivers = uieditfield(obj.panelHandle, 'numeric', ...
                 'Position', [150, panelPosition(4)-80, 30, 22], ...
                 'Value', 4, 'ValueChangedFcn', @obj.changeNumberOfReceivers);
-            
+
+            % Units toggle group
+            obj.unitsToggleGroup = uibuttongroup('Parent', obj.panelHandle, ...
+                'Title', 'Units', ...
+                'Position', [4, panelPosition(4)-120, 140, 60], ...
+                'SelectionChangedFcn', @(src,event) obj.changeUnits(event));
+
+            uicontrol(obj.unitsToggleGroup, 'Style', 'radiobutton', ...
+                'String', 'Meters', 'Position', [10, 30, 100, 15]);
+            uicontrol(obj.unitsToggleGroup, 'Style', 'radiobutton', ...
+                'String', 'Lat/Lon', 'Position', [10, 10, 100, 15]);
+
+            % Grid origin label + inputs
+            uilabel('Parent', obj.panelHandle, 'Text', 'Grid origin:', ...
+                'Position', [150, panelPosition(4)-120, 80, 15], ...
+                'HorizontalAlignment', 'Right');
+
+            % grid origin text box:
+            obj.gridOriginLatEdit = uieditfield(obj.panelHandle, 'numeric', ...
+                'Position', [235, panelPosition(4)-120, 60, 15], ...
+                'Tooltip', 'Latitude, decimal degrees');
+            obj.gridOriginLonEdit = uieditfield(obj.panelHandle, 'numeric', ...
+                'Position', [300, panelPosition(4)-120, 60, 15], ...
+                'Tooltip', 'Longitude, decimal degrees');
             obj.buildReceiverTable(4);
-            
+
             % save array config file push button:
             buttonPosition(1) = panelPosition(3)/2 - 120;
             buttonPosition(2) = 10;
@@ -51,22 +78,29 @@ classdef arrayPanel < handle
                 'ButtonPushedFcn', @obj.saveConfigFile);
         end
 
-        function buildReceiverTable(obj, numReceivers)
+        function buildReceiverTable(obj, numReceivers, unitsMode)
+            if nargin < 3
+                unitsMode = 'Meters';
+            end
             hydNum = (1:numReceivers).';
-            arrayTypes = categorical(repmat({'1-ch (omni)'}, [numReceivers, 1]), ...
-                obj.params.arrayTypes);
-            xloc = zeros(size(hydNum));
-            yloc = xloc;
-            zloc = xloc;
-                            
-            recTableData = table(hydNum, arrayTypes, xloc, yloc, zloc, ...
-                'VariableNames', {'recNum', 'arrayType', 'x_m', 'y_m', 'z_m'});
-            
+            if strcmp(unitsMode, 'Meters')
+                xloc = zeros(size(hydNum));
+                yloc = xloc;
+                zloc = xloc;
+                recTableData = table(hydNum, xloc, yloc, zloc, ...
+                    'VariableNames', {'recNum', 'x_m', 'y_m', 'z_m'});
+            else % Lat/Lon
+                lat = zeros(size(hydNum));
+                lon = lat;
+                zloc = lat;
+                recTableData = table(hydNum, lat, lon, zloc, ...
+                    'VariableNames', {'recNum', 'lat', 'lon', 'z_m'});
+            end
+
             tableWidth = obj.panelPosition(3)-8;
             obj.receiverTable = uitable(obj.panelHandle, 'Data', recTableData, ...
                 'Position', [4, obj.panelPosition(4)-80-250-4, tableWidth, 250], ...
-                'ColumnEditable',true, 'FontSize', 13, ...
-                'ColumnWidth', {tableWidth/6, tableWidth/3, tableWidth/6, tableWidth/6, tableWidth/6});
+                'ColumnEditable', true, 'FontSize', 13);
         end
 
         %% callback functions
@@ -77,16 +111,51 @@ classdef arrayPanel < handle
                 xloc = zeros(size(hydNum));
                 yloc = xloc;
                 zloc = xloc;
-                
+
                 arrayTypes = categorical(repmat({'1-ch (omni)'}, [numNewReceivers, 1]), ...
-                obj.params.arrayTypes);
-                
+                    obj.params.arrayTypes);
+
                 newRows = table(hydNum, arrayTypes, xloc, yloc, zloc, ...
-                'VariableNames',  {'recNum', 'arrayType', 'x_m', 'y_m', 'z_m'});
+                    'VariableNames',  {'recNum', 'arrayType', 'x_m', 'y_m', 'z_m'});
                 obj.receiverTable.Data = [obj.receiverTable.Data; newRows];
             else
                 % remove receiver rows
                 obj.receiverTable.Data = obj.receiverTable.Data(1:eventData.Value, :);
+            end
+        end
+
+        function changeUnits(obj, event)
+            newMode = event.NewValue.String; % 'Meters' or 'Lat/Lon'
+            obj.buildReceiverTable(height(obj.receiverTable.Data), newMode);
+        end
+
+        function setArrayConfiguration(obj, ~, ~)
+            mode = obj.unitsToggleGroup.SelectedObject.String;
+            originLat = obj.gridOriginLatEdit.Value;
+            originLon = obj.gridOriginLonEdit.Value;
+            tbl = obj.receiverTable.Data;
+
+            if strcmp(mode, 'Meters')
+                % Force negative depth
+                tbl.z_m = -abs(tbl.z_m);
+                % Convert meters to lat/lon for storage
+                for i = 1:height(tbl)
+                    [lat, lon] = utils.xy2latlon(tbl.x_m(i), tbl.y_m(i), originLat, originLon);
+                    tbl.lat(i) = lat;
+                    tbl.lon(i) = lon;
+                end
+                obj.receiverTable.Data = tbl; % Might keep meters depending on preference
+                obj.metersTable = tbl; % store internal meters version
+
+            else % Lat/Lon mode
+                tbl.z_m = -abs(tbl.z_m);
+                for i = 1:height(tbl)
+                    [x, y] = utils.latlon2m(tbl.lat(i), tbl.lon(i), originLat, originLon);
+                    tbl.x_m(i) = x;
+                    tbl.y_m(i) = y;
+                end
+                obj.receiverTable.Data = tbl;
+                obj.metersTable = tbl;
             end
         end
 
@@ -104,7 +173,7 @@ classdef arrayPanel < handle
                     fprintf('\nError: array configuration file is incorrect format\n')
                 end
             end
-             figure(obj.panelHandle.Parent)
+            figure(obj.panelHandle.Parent)
         end
 
         function saveConfigFile(obj, ~, ~)
@@ -116,7 +185,7 @@ classdef arrayPanel < handle
                 receiverTable = obj.receiverTable.Data;
                 save(fullfile(location, file), 'receiverTable');
             end
-           
+
         end
     end
 end
