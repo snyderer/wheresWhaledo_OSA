@@ -232,9 +232,11 @@ classdef detectorPanel < handle
                 fprintf('no detection file -- run detector or select detection file')
                 return
             end
-            brsh = gui.brushTDOA(obj.DET, [], obj.saveFile);
-            
-            obj.DET = brsh.data;
+            brsh = gui.brushTDOA(obj.DET, [], obj.saveFile, @(newData)obj.updateDET(newData));
+        end
+
+        function updateDET(obj, newData)
+            obj.DET = newData;  % live update DET data as user makes changes in brushTDOA
         end
 
         function setDetector(obj, ~, ~)

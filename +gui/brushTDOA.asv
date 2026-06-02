@@ -11,10 +11,9 @@ classdef brushTDOA < handle
         state        % states and settings internal to the program. Not customizable. Change depending on how program is used.
         previousState = {};
         saveLoc
-        updateCallback = []
     end
     methods
-        function obj = brushTDOA(data, params, saveLoc, updateCallback)
+        function obj = brushTDOA(data, params, saveLoc, detObj)
             if nargin==1 || isempty(params) % no user-provided params, set to default
                 params.source = "default";
             else % override default with user-provided params
@@ -22,9 +21,7 @@ classdef brushTDOA < handle
             end
 
             if nargin<3; saveLoc = fullfile(pwd, 'brushedDET.mat'); end
-            if nargin<4; updateCallback=[]; end
-            
-            obj.updateCallback = updateCallback;
+            if nargin<4; detObj = []; end
 
             obj.data = data;
             if sum(strcmp(obj.data.Properties.VariableNames, "label"))==0
@@ -266,9 +263,6 @@ classdef brushTDOA < handle
             end
             DET = obj.data;
             save(obj.saveLoc, 'DET')
-            if ~isempty(obj.updateCallback)
-                obj.updateCallback(obj.data);
-            end
         end
         
         function runCommand(obj, command)
@@ -335,9 +329,6 @@ classdef brushTDOA < handle
             end
             DET = obj.data;
             save(obj.saveLoc, 'DET')
-            if ~isempty(obj.updateCallback)
-                obj.updateCallback(obj.data);
-            end
         end
 
         function storeBackup(obj)
