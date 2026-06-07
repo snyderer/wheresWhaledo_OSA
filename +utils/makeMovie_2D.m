@@ -17,17 +17,22 @@ end
 if nargin<3; saveFileName = './movie.mp4'; end
 if nargin<4; speedUpRate = 60; end
 if nargin<5
-    params.colors = [0, 0, 0; % unlabeled
-        0.984314, 0.603922, 0.600000; % whale 1
-        0.756863, 0.874510, 0.541176; % whale 2
-        0.650980, 0.807843, 0.890196; % whale 3
-        0.992157, 0.749020, 0.435294; % whale 4
-        0.121569, 0.470588, 0.705882; % whale 5
-        0.792157, 0.698039, 0.839216; % whale 6
-        0.219608, 0.725490, 0.027451; % whale 7
-        0.415686, 0.239216, 0.603922; % whale 8
-        0.890196, 0.101961, 0.109804]; % whale 9
+    baseColors = [0, 0, 0];   % unlabeled whales stay black
+    params.colors = [baseColors; lines(numWhales)];
 end
+% Testing out a dynamic color list that changes to the number of whales
+% if nargin<5
+%     params.colors = [0, 0, 0; % unlabeled
+%         0.984314, 0.603922, 0.600000; % whale 1
+%         0.756863, 0.874510, 0.541176; % whale 2
+%         0.650980, 0.807843, 0.890196; % whale 3
+%         0.992157, 0.749020, 0.435294; % whale 4
+%         0.121569, 0.470588, 0.705882; % whale 5
+%         0.792157, 0.698039, 0.839216; % whale 6
+%         0.219608, 0.725490, 0.027451; % whale 7
+%         0.415686, 0.239216, 0.603922; % whale 8
+%         0.890196, 0.101961, 0.109804]; % whale 9
+% end
 errorMessage = [];
 numWhales = numel(LOC);
 
@@ -98,9 +103,9 @@ else
     return
 end
 
-xlimVals = [min([CI95_x_lo; hydLoc(:, 1)]), max([CI95_x_hi; hydLoc(:, 1)])];
+xlimVals = [min([CI95_x_lo(:); hydLoc(:,1)]), max([CI95_x_hi(:); hydLoc(:,1)])]; % Flattened matrices (CI95_x_lo(:)) before concatenation (JS)
 xlimVals = xlimVals + diff(xlimVals).*[-.1, .1];
-ylimVals = [min([CI95_y_lo; hydLoc(:, 2)]), max([CI95_y_hi; hydLoc(:, 2)])];
+ylimVals = [min([CI95_y_lo(:); hydLoc(:,2)]), max([CI95_y_hi(:); hydLoc(:,2)])];
 ylimVals = ylimVals + diff(ylimVals).*[-.1, .1];
 
 % begin plotting and saving video frames:
@@ -120,19 +125,29 @@ try
         for iw = 1:numWhales
             xci = linspace(CI95_x_lo(i, iw),CI95_x_hi(i, iw), 100);
             yci = linspace(CI95_y_lo(i, iw),CI95_y_hi(i, iw), 100);
+            
+            % Skipping just the "imagesc" block when CI95 values are NaN (JS)
+            if ~any(isnan(xci)) && ~any(isnan(yci)) 
+                [xci_mesh, yci_mesh] = meshgrid(xci, yci);
+                dist = sqrt((xci_mesh - x(i, iw)).^2 + (yci_mesh - y(i, iw)).^2);
+                L = -dist.^2;
+                imagesc(xci, yci, L)
+                colormap(flipud(gray))
+                set(gca, 'YDir', 'normal')
+            end
 
-            [xci_mesh, yci_mesh] = meshgrid(xci, yci);
-
-            dist = sqrt((xci_mesh - x(i, iw)).^2 + (yci_mesh - y(i, iw)).^2);
-            L = -dist.^2;
-
-
-            imagesc(xci, yci, L)
-            colormap(flipud(gray))
-            set(gca, 'YDir', 'normal')
+            % [xci_mesh, yci_mesh] = meshgrid(xci, yci);
+            % 
+            % dist = sqrt((xci_mesh - x(i, iw)).^2 + (yci_mesh - y(i, iw)).^2);
+            % L = -dist.^2;
+            % 
+            % 
+            % imagesc(xci, yci, L)
+            % colormap(flipud(gray))
+            % set(gca, 'YDir', 'normal')
 
             hold on
-            plot(xsm(1:i, iw), ysm(1:i, iw), 'Color', params.colors(iw+1, :))
+            %plot(xsm(1:i, iw), ysm(1:i, iw), 'Color', params.colors(iw+1, :))
             plot(x(i, iw), y(i, iw), '.', 'MarkerSize', 24, 'Color', params.colors(iw+1, :))
             plot(hydLoc(:, 1), hydLoc(:,2), 'ks')
         end

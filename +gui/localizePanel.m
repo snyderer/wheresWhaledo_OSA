@@ -199,7 +199,7 @@ classdef localizePanel < handle
                 LOC.TDet = obj.LOC{iw}.TDet(idx);
                 LOC.label = obj.LOC{iw}.label(idx);
                 LOC.x_m = obj.LOC{iw}.x_m(idx);
-                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.y_m = obj.LOC{iw}.y_m(idx); % Fixed duplicate x_m to y_m (JS)
                 LOC.z_m = obj.LOC{iw}.z_m(idx);
                 LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
                 LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);
@@ -219,7 +219,7 @@ classdef localizePanel < handle
                     LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
                 end
                 [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
-                saveloc = fullfile(savepath, [savename, '.csv']);
+                saveloc = fullfile(savepath, sprintf('%s_whale%d.csv', savename, iw)); % Fixed repeated filenaming error (JS)
                
                 writetable(LOC, saveloc)
             end
@@ -233,16 +233,17 @@ classdef localizePanel < handle
         function makeVideo(obj)
             [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
             saveloc = fullfile(savepath, [savename, '.mp4']);
-            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc)
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc, 300) % Adjusted speed up rate to 300:1 minute ratio (5 hours for every 1 minute) (JS)
         end
-        function runLocalizer(obj, ~, ~)
+        function runLocalizer(obj, ~, ~) % Updated filenaming to remove extra period in name (JS)
             wb = waitbar(.25, 'Localizing');
             obj.LOC = obj.localizer.run;
-            waitbar(.6, wb, ['Saving CSV to ', obj.saveLocalizationsLocation(1:end-3)]);
+            [~, savename, ~] = fileparts(obj.saveLocalizationsLocation);
+            waitbar(.6, wb, ['Saving CSV to ', savename, '.csv']);
             obj.makeCSV
-            waitbar(.75, wb, ['Generating and writing video to  ', obj.saveLocalizationsLocation(1:end-3), '.mp4']);
+            waitbar(.75, wb, ['Generating and writing video to ', savename, '.mp4']);
             obj.makeVideo
-
+        
             waitbar(1, wb, 'Localization Complete!')
             pause(.3)
             close(wb)

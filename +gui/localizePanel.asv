@@ -41,6 +41,7 @@ classdef localizePanel < handle
             obj.loadConfigButtonHandle = uibutton('push', 'Parent', obj.panelHandle, 'Text', 'load existing model/method', ...
                 'Position', buttonPosition,'FontSize', 12, 'BackgroundColor', params.colors.items, ...
                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.loadConfig);
+            obj.loadConfigButtonHandle.Enable = 'off';
 
             obj.buildMethodDropdown
 
@@ -95,7 +96,7 @@ classdef localizePanel < handle
             obj.settingsPanel = uipanel('Parent', obj.panelHandle, 'Position', settingsPanelPosition);
 
             % generate model button:
-            buttonPosition(2) = 10+24;
+            buttonPosition(2) = 28;
             obj.generateModelButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'generate model', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.generateModel);
 
@@ -106,7 +107,7 @@ classdef localizePanel < handle
 %                 'FontColor', params.colors.text, 'ButtonPushedFcn', @obj.saveConfig);
 
             % run localization button:
-            buttonPosition(2) = 10;
+            buttonPosition(2) = 4;
             obj.runLocalizerButtonHandle = uibutton(obj.panelHandle, 'BackgroundColor', params.colors.items, ...
                 'Text', 'run localization', 'Position', buttonPosition, 'ButtonPushedFcn', @obj.runLocalizer);
         end
@@ -137,7 +138,7 @@ classdef localizePanel < handle
         end
 
         function selectModelSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select name and location to save model', [obj.selectedMethod(1:end-2), '.mat']);
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
@@ -150,7 +151,7 @@ classdef localizePanel < handle
         end
 
         function selectLocalizationSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select model save location and file name', [obj.selectedMethod(1:end-2), '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select name and location to save localizations',  'localizations.mat');
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
@@ -193,11 +194,12 @@ classdef localizePanel < handle
         
         function makeCSV(obj)
             for iw = 1:numel(obj.LOC)
-                idx = ~isnan(obj.LOC{iw});
+                LOC = table;
+                idx = ~isnan(obj.LOC{iw}.x_m);
                 LOC.TDet = obj.LOC{iw}.TDet(idx);
                 LOC.label = obj.LOC{iw}.label(idx);
                 LOC.x_m = obj.LOC{iw}.x_m(idx);
-                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.y_m = obj.LOC{iw}.y_m(idx); % Fixed duplicate x_m to y_m (JS)
                 LOC.z_m = obj.LOC{iw}.z_m(idx);
                 LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
                 LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);
@@ -216,7 +218,10 @@ classdef localizePanel < handle
                     str = sprintf('XAmp_%i%i', obj.MOD.hydPairs(itdoa, :));
                     LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
                 end
-                save('')
+                [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
+                saveloc = fullfile(savepath, sprintf('%s_whale%d.csv', savename, iw)); % Fixed repeated filenaming error (JS)
+               
+                writetable(LOC, saveloc)
             end
 
         end
@@ -226,16 +231,19 @@ classdef localizePanel < handle
         end
 
         function makeVideo(obj)
-            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, [obj.saveLocalizationsLocation(1:end-3), '.mp4'])
+            [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
+            saveloc = fullfile(savepath, [savename, '.mp4']);
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc)
         end
         function runLocalizer(obj, ~, ~)
             wb = waitbar(.25, 'Localizing');
             obj.LOC = obj.localizer.run;
-            waitbar(.6, wb, ['Saving CSV to ', obj.saveLocalizationsLocation(1:end-3)]);
+            [~, savename, ~] = fileparts(obj.saveLocalizationsLocation);
+            waitbar(.6, wb, ['Saving CSV to ', savename, '.csv']);
             obj.makeCSV
-            waitbar(.75, wb, ['Generating and writing video to  ', obj.saveLocalizationsLocation(1:end-3), '.mp4']);
+            waitbar(.75, wb, ['Generating and writing video to ', savename, '.mp4']);
             obj.makeVideo
-
+        
             waitbar(1, wb, 'Localization Complete!')
             pause(.3)
             close(wb)
