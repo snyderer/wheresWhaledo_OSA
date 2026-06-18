@@ -16,6 +16,8 @@ if istable(hydLoc)
 end
 if nargin<3; saveFileName = './movie.mp4'; end
 if nargin<4; speedUpRate = 60; end
+errorMessage = [];
+numWhales = numel(LOC);
 if nargin<5
     baseColors = [0, 0, 0];   % unlabeled whales stay black
     params.colors = [baseColors; lines(numWhales)];
@@ -33,8 +35,6 @@ end
 %         0.415686, 0.239216, 0.603922; % whale 8
 %         0.890196, 0.101961, 0.109804]; % whale 9
 % end
-errorMessage = [];
-numWhales = numel(LOC);
 
 TDet_min = nan;
 TDet_max = nan;
