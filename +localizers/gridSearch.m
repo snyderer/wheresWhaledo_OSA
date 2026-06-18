@@ -88,7 +88,7 @@ classdef gridSearch < handle
             obj.internalParams.Ngridpoints = length(obj.MOD.x_m)*length(obj.MOD.y_m)*length(obj.MOD.z_m);
 
             obj.MOD.recloc_m = [obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.x_m, ... % changed to 'receiverTableMeters.Data.x_m' (JS)
-                obj.wheresWhaledo.arrayPanel.receiverTable.DataMeters.y_m, ...
+                obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.y_m, ...
                 obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.z_m];
 
             obj.internalParams.Nrec = size(obj.MOD.recloc_m, 1);
