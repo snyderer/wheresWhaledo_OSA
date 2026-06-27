@@ -13,7 +13,7 @@ classdef detectorPanel < handle
         setDetectorButtonHandle
         runDetectorButtonHandle
         runBrushTDOAButtonHandle
-        runOnDirectoryCheckbox
+        %runOnDirectoryCheckbox % Removed checkbox for file directory (JSS)
 
         detectorTree    % struct containing all available detectors
         selectedSpecies
@@ -75,7 +75,7 @@ classdef detectorPanel < handle
             % select input wav file text box:
             boxPosition(1) = 4;
             boxPosition(2) = obj.detectorListHandle.Position(2) - 24;
-            boxPosition(3) = 240;
+            boxPosition(3) = 330;
             boxPosition(4) = 20;
             obj.wavFileBoxHandle = uieditfield(obj.panelHandle, 'text', ...
                 'Placeholder', '[enter path to wav file(s)...]', ...
@@ -91,13 +91,13 @@ classdef detectorPanel < handle
                 'ButtonPushedFcn', @obj.selectWavFile);
             obj.selectWavFileButtonHandle.InnerPosition = obj.selectWavFileButtonHandle.InnerPosition + [0, -2, 2, 2];
             
-            % checkbox to run on full directory:
-            checkboxPosition(1) = buttonPosition(1) + buttonPosition(3) + 4;
-            checkboxPosition(2) = boxPosition(2);
-            checkboxPosition(3) = panelPosition(3) - checkboxPosition(1) - 4;
-            checkboxPosition(4) = boxPosition(4);
-            obj.runOnDirectoryCheckbox = uicheckbox("Parent", obj.panelHandle, ...
-                "Text", "full directory", "Position", checkboxPosition, "Value", 1);
+            % % checkbox to run on full directory: 
+            % checkboxPosition(1) = buttonPosition(1) + buttonPosition(3) + 4;
+            % checkboxPosition(2) = boxPosition(2);
+            % checkboxPosition(3) = panelPosition(3) - checkboxPosition(1) - 4;
+            % checkboxPosition(4) = boxPosition(4);
+            % obj.runOnDirectoryCheckbox = uicheckbox("Parent", obj.panelHandle, ...
+            %     "Text", "full directory", "Position", checkboxPosition, "Value", 1);
 
             % select save location
             boxPosition(2) = obj.selectWavFileButtonHandle.Position(2) - 24;
@@ -157,16 +157,27 @@ classdef detectorPanel < handle
         end
 
         function selectWavFile(obj, ~, ~)
-            [file, location] = uigetfile('*wav', 'Select wav file');
-            if isequal(file,0) || isequal(location,0)
-                % no file selected
-                fprintf('\ncanceled wav select\n')
+            location = uigetdir(pwd, 'Select folder containing wav files');
+            if isequal(location, 0)
+                fprintf('\ncanceled wav folder select\n')
             else
-                obj.wavFile = fullfile(location, file);
-                obj.wavFileBoxHandle.Value = obj.wavFile;
+                obj.wavFile = location;  % store the directory path
+                obj.wavFileBoxHandle.Value = location;
             end
             figure(obj.panelHandle.Parent)
         end
+
+        % function selectWavFile(obj, ~, ~)
+        %     [file, location] = uigetfile('*wav', 'Select wav file');
+        %     if isequal(file,0) || isequal(location,0)
+        %         % no file selected
+        %         fprintf('\ncanceled wav select\n')
+        %     else
+        %         obj.wavFile = fullfile(location, file);
+        %         obj.wavFileBoxHandle.Value = obj.wavFile;
+        %     end
+        %     figure(obj.panelHandle.Parent)
+        % end
 
         function selectSaveFile(obj, ~, ~)
             [file, location] = uiputfile('*.mat', 'Select save location and file name', [obj.selectedSpecies, '.mat']);
@@ -250,20 +261,16 @@ classdef detectorPanel < handle
             wb = waitbar(.0, 'Initializing detector ...');
             obj.detector.userParams = utils.getUserParamsFromGrid(obj.settingsPanel.Children);
             
-            if obj.runOnDirectoryCheckbox.Value
-                [wavpath, ~] = fileparts(obj.wavFile);
-                d = dir(fullfile(wavpath, '*.wav'));
-                waitbar(.5/numel(d), wb, sprintf('detecting on %i of %i wav files', 1, numel(d)));
-                obj.DET = obj.detector.run(fullfile(d(1).folder, d(1).name));
-                for i = 2:numel(d)
-                    waitbar((i-.5)/numel(d), wb, sprintf('detecting on %i of %i wav files', i, numel(d)));
-                    det = obj.detector.run(fullfile(d(i).folder, d(i).name));
-                    obj.DET = [obj.DET; det];
-                end
-            else
-                waitbar(.3, wb, 'detecting on 1/1 wav files ...');
-                obj.DET = obj.detector.run(obj.wavFile);
+            % Always run on full directory
+            d = dir(fullfile(obj.wavFile, '*.wav'));
+            waitbar(.5/numel(d), wb, sprintf('detecting on %i of %i wav files', 1, numel(d)));
+            obj.DET = obj.detector.run(fullfile(d(1).folder, d(1).name));
+            for i = 2:numel(d)
+                waitbar((i-.5)/numel(d), wb, sprintf('detecting on %i of %i wav files', i, numel(d)));
+                det = obj.detector.run(fullfile(d(i).folder, d(i).name));
+                obj.DET = [obj.DET; det];
             end
+        
             waitbar(.95, wb, 'saving DET file ...');
             DET = obj.DET;
             save(obj.saveFile, 'DET')
