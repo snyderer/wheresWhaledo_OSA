@@ -127,23 +127,25 @@ classdef localizePanel < handle
 
         %% callback functions
         function loadConfig(obj, ~, ~)
-            [file, location] = uigetfile('*.mat', 'Select localization config file');
+            [file, location] = uigetfile('*.mat', 'Select localization config file', obj.wheresWhaledo.lastFilePath);
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled load\n')
             else
                 % TO DO: set up everything with the parameters
+                obj.wheresWhaledo.lastFilePath = location;
             end
             figure(obj.panelHandle.Parent)
         end
 
         function selectModelSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select name and location to save model', [obj.selectedMethod(1:end-2), '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select name and location to save model', fullfile(obj.wheresWhaledo.lastFilePath, [obj.selectedMethod(1:end-2), '.mat']));
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled save location select\n')
             else
+                obj.wheresWhaledo.lastFilePath = location;
                 obj.saveModelLocation = fullfile(location, file);
                 obj.saveModelBoxHandle.Value = obj.saveModelLocation;
             end
@@ -151,12 +153,13 @@ classdef localizePanel < handle
         end
 
         function selectLocalizationSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select name and location to save localizations',  'localizations.mat');
+            [file, location] = uiputfile('*.mat', 'Select name and location to save localizations',  fullfile(obj.wheresWhaledo.lastFilePath, 'localizations.mat'));
 
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled save location select\n')
             else
+                obj.wheresWhaledo.lastFilePath = location;
                 obj.saveLocalizationsLocation = fullfile(location, file);
                 obj.saveLocalizationsBoxHandle.Value = obj.saveLocalizationsLocation;
             end
@@ -199,7 +202,7 @@ classdef localizePanel < handle
                 LOC.TDet = obj.LOC{iw}.TDet(idx);
                 LOC.label = obj.LOC{iw}.label(idx);
                 LOC.x_m = obj.LOC{iw}.x_m(idx);
-                LOC.x_m = obj.LOC{iw}.x_m(idx);
+                LOC.y_m = obj.LOC{iw}.y_m(idx);
                 LOC.z_m = obj.LOC{iw}.z_m(idx);
                 LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
                 LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);

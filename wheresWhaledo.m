@@ -6,6 +6,8 @@ classdef wheresWhaledo < handle
         arrayPanel      % handle to panel for setting array configurations
         detectorPanel   % handle to panel for setting detector properties and creating TDOA tables
         localizePanel   % handle to panel for configuring localization method and data
+
+        lastFilePath = '';
     end
 
     methods
@@ -17,6 +19,7 @@ classdef wheresWhaledo < handle
                 params.source = "custom";
             end
             obj.setParams(params) % set params
+            obj.lastFilePath = pwd;
 
             % determine if Where's Whaledo figure is already open:
             isfig = findall(0, "Type", "figure", "name", "Where's Whaledo");

@@ -157,19 +157,31 @@ classdef detectorPanel < handle
         end
 
         function selectWavFile(obj, ~, ~)
-            [file, location] = uigetfile('*wav', 'Select wav file');
-            if isequal(file,0) || isequal(location,0)
-                % no file selected
-                fprintf('\ncanceled wav select\n')
+            % Use file selector for WAV files regardless of directory mode
+            [file, location] = uigetfile({'*.wav;*.WAV', 'WAV files (*.wav, *.WAV)'}, 'Select WAV file', obj.wheresWhaledo.lastFilePath);
+
+            if isequal(file, 0) || isequal(location, 0)
+                fprintf('\ncanceled wav select\n');
             else
-                obj.wavFile = fullfile(location, file);
-                obj.wavFileBoxHandle.Value = obj.wavFile;
+                if obj.runOnDirectoryCheckbox.Value
+                    % Directory mode: store folder containing the selected file
+                    obj.wavFile = location;
+                    obj.wavFileBoxHandle.Value = obj.wavFile;
+                else
+                    % Single file mode: store full file path
+                    obj.wavFile = fullfile(location, file);
+                    obj.wavFileBoxHandle.Value = obj.wavFile;
+                end
             end
-            figure(obj.panelHandle.Parent)
+            
+            obj.wheresWhaledo.lastFilePath = location;
+
+            % Bring panel's parent figure to front
+            figure(obj.panelHandle.Parent);
         end
 
         function selectSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select save location and file name', [obj.selectedSpecies, '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select save location and file name', fullfile(obj.wheresWhaledo.lastFilePath, [obj.selectedSpecies, '_detections', '.mat']));
             
             if isequal(file,0) || isequal(location,0)
                 % no file selected
@@ -178,6 +190,9 @@ classdef detectorPanel < handle
                 obj.saveFile = fullfile(location, file);
                 obj.saveFileBoxHandle.Value = obj.saveFile;
             end
+            
+            obj.wheresWhaledo.lastFilePath = location;
+
             figure(obj.panelHandle.Parent)
         end
 
@@ -191,7 +206,7 @@ classdef detectorPanel < handle
         end
 
         function loadDetFile(obj, ~, ~)
-            [file, location] = uigetfile('*.mat', 'Select detection file');
+            [file, location] = uigetfile('*.mat', 'Select detection file', obj.wheresWhaledo.lastFilePath);
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled load\n')
@@ -232,9 +247,11 @@ classdef detectorPanel < handle
                 fprintf('no detection file -- run detector or select detection file')
                 return
             end
-            brsh = gui.brushTDOA(obj.DET, [], obj.saveFile);
-            
-            obj.DET = brsh.data;
+            brsh = gui.brushTDOA(obj.DET, [], obj.saveFile, @(newData)obj.updateDET(newData));
+        end
+
+        function updateDET(obj, newData)
+            obj.DET = newData;  % live update DET data as user makes changes in brushTDOA
         end
 
         function setDetector(obj, ~, ~)
@@ -251,21 +268,23 @@ classdef detectorPanel < handle
             if obj.runOnDirectoryCheckbox.Value
                 [wavpath, ~] = fileparts(obj.wavFile);
                 d = dir(fullfile(wavpath, '*.wav'));
+                waitbar(.5/numel(d), wb, sprintf('detecting on %i of %i wav files', 1, numel(d)));
                 obj.DET = obj.detector.run(fullfile(d(1).folder, d(1).name));
                 for i = 2:numel(d)
-                    waitbar(1, wb, 'Detector complete');
+                    waitbar((i-.5)/numel(d), wb, sprintf('detecting on %i of %i wav files', i, numel(d)));
                     det = obj.detector.run(fullfile(d(i).folder, d(i).name));
                     obj.DET = [obj.DET; det];
                 end
             else
-                waitbar(.3, wb, 'running on 1/1 wav files ...');
+                waitbar(.3, wb, 'detecting on 1/1 wav files ...');
                 obj.DET = obj.detector.run(obj.wavFile);
             end
-            waitbar(.9, wb, 'saving DET file ...');
+            waitbar(.95, wb, 'saving DET file ...');
             DET = obj.DET;
             save(obj.saveFile, 'DET')
             waitbar(1, wb, 'Detector complete');
             pause(.5)
+            close(wb)
         end
     end
 end

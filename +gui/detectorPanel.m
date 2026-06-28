@@ -157,27 +157,40 @@ classdef detectorPanel < handle
         end
 
         function selectWavFile(obj, ~, ~)
-            [file, location] = uigetfile('*wav', 'Select wav file');
-            if isequal(file,0) || isequal(location,0)
-                % no file selected
-                fprintf('\ncanceled wav select\n')
+            % Use file selector for WAV files regardless of directory mode
+            [file, location] = uigetfile({'*.wav;*.WAV', 'WAV files (*.wav, *.WAV)'}, 'Select WAV file', obj.wheresWhaledo.lastFilePath);
+
+            if isequal(file, 0) || isequal(location, 0)
+                fprintf('\ncanceled wav select\n');
             else
-                obj.wavFile = fullfile(location, file);
-                obj.wavFileBoxHandle.Value = obj.wavFile;
+                if obj.runOnDirectoryCheckbox.Value
+                    % Directory mode: store folder containing the selected file
+                    obj.wavFile = location;
+                    obj.wavFileBoxHandle.Value = obj.wavFile;
+                else
+                    obj.wheresWhaledo.lastFilePath = location;
+                    % Single file mode: store full file path
+                    obj.wavFile = fullfile(location, file);
+                    obj.wavFileBoxHandle.Value = obj.wavFile;
+                end
             end
-            figure(obj.panelHandle.Parent)
+            
+            % Bring panel's parent figure to front
+            figure(obj.panelHandle.Parent);
         end
 
         function selectSaveFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select save location and file name', [obj.selectedSpecies, '.mat']);
+            [file, location] = uiputfile('*.mat', 'Select save location and file name', fullfile(obj.wheresWhaledo.lastFilePath, [obj.selectedSpecies, '_detections', '.mat']));
             
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled save location select\n')
             else
+                obj.wheresWhaledo.lastFilePath = location;
                 obj.saveFile = fullfile(location, file);
                 obj.saveFileBoxHandle.Value = obj.saveFile;
             end
+
             figure(obj.panelHandle.Parent)
         end
 
@@ -191,11 +204,12 @@ classdef detectorPanel < handle
         end
 
         function loadDetFile(obj, ~, ~)
-            [file, location] = uigetfile('*.mat', 'Select detection file');
+            [file, location] = uigetfile('*.mat', 'Select detection file', obj.wheresWhaledo.lastFilePath);
             if isequal(file,0) || isequal(location,0)
                 % no file selected
                 fprintf('\ncanceled load\n')
             else
+                obj.wheresWhaledo.lastFilePath = location;
                 tmp = load(fullfile(location, file));
                 if isfield(tmp, 'DET')
                     obj.DET = tmp.DET;
@@ -209,7 +223,7 @@ classdef detectorPanel < handle
         function saveDetFile(obj, ~, ~)
             
             if isempty(obj.saveFile)
-                [file, location] = uiputfile('*.mat', 'Select save location and file name', 'detections.mat');
+                [file, location] = uiputfile('*.mat', 'Select save location and file name', fullfile(obj.wheresWhaledo.lastFilePath, 'detections.mat'));
             else
                 [file, location] = fileparts(obj.saveFile);
             end
@@ -217,6 +231,7 @@ classdef detectorPanel < handle
                 % no file selected
                 fprintf('\ncanceled save\n')
             else
+                obj.wheresWhaledo.lastFilePath = location;
                 DET = obj.DET.Data;
                 save(fullfile(location, [file, '.mat']), 'DET');
             end
