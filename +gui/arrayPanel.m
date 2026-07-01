@@ -8,20 +8,20 @@ classdef arrayPanel < handle
         setConfigBtn
         saveConfigBtn
         numberOfReceivers
-        useRec1Check            % sets origin of grid as rec 1's position
+        useRec1Check
 
-        unitsTabGroup          % handle to tab group for meters/latlon
-        metersTab              % handle to tab for meters
-        latlonTab              % handle to tab for lat/lon
+        unitsTabGroup
+        metersTab
+        latlonTab
 
-        receiverTableMeters     % meters table
-        receiverTableLatLon     % lat/lon table
+        receiverTableMeters
+        receiverTableLatLon
 
         gridOriginLatEdit
         gridOriginLonEdit
         params
 
-        metersTable             % internal storage for meters data
+        metersTable
     end
 
     methods
@@ -62,20 +62,25 @@ classdef arrayPanel < handle
             % Checkbox next to origin label
             obj.useRec1Check = uicheckbox('Parent', obj.panelHandle, ...
                 'Text', 'use rec 1 as origin', ...
-                'Value', true, ...                   % checked by default
+                'Value', true, ...
                 'Position', [20, originY, 120, 15], ...
                 'ValueChangedFcn', @(src,~)obj.toggleOriginFields());
 
-            % Label above lat/lon inputs
+            % Labels
             uilabel('Parent', obj.panelHandle, 'Text', 'lat', ...
                 'Position', [235, originY + 18, 60, 15], 'HorizontalAlignment', 'center');
             uilabel('Parent', obj.panelHandle, 'Text', 'lon', ...
                 'Position', [300, originY + 18, 60, 15], 'HorizontalAlignment', 'center');
 
+            % Origin edit fields with listeners
             obj.gridOriginLatEdit = uieditfield(obj.panelHandle, 'numeric', ...
                 'Position', [235, originY, 60, 15], 'Tooltip', 'Latitude, decimal degrees');
             obj.gridOriginLonEdit = uieditfield(obj.panelHandle, 'numeric', ...
                 'Position', [300, originY, 60, 15], 'Tooltip', 'Longitude, decimal degrees');
+
+            % Recalculate meters from lat/lon when origin changes
+            obj.gridOriginLatEdit.ValueChangedFcn = @(src,~)obj.updateMetersFromLatLon();
+            obj.gridOriginLonEdit.ValueChangedFcn = @(src,~)obj.updateMetersFromLatLon();
 
             % Units tab group
             tableY = originY - 260;
@@ -87,16 +92,20 @@ classdef arrayPanel < handle
             obj.receiverTableMeters = uitable('Parent', obj.metersTab, ...
                 'Data', obj.buildTableData(4,'Meters'), ...
                 'ColumnEditable', true, 'FontSize', 13, ...
-                'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36], ...
-                'CellEditCallback', @(tbl,~)obj.updateOriginFromRec1());
+                'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36]);
+
+            %  When meters table is edited, update lat/lon
+            obj.receiverTableMeters.CellEditCallback = @(tbl,~)obj.updateLatLonFromMeters();
 
             % Lat/Lon tab
             obj.latlonTab = uitab(obj.unitsTabGroup, 'Title', 'Lat/Lon');
             obj.receiverTableLatLon = uitable('Parent', obj.latlonTab, ...
                 'Data', obj.buildTableData(4,'LatLon'), ...
                 'ColumnEditable', true, 'FontSize', 13, ...
-                'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36], ...
-                'CellEditCallback', @(tbl,~)obj.updateOriginFromRec1());
+                'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36]);
+
+            % When lat/lon table is edited, update meters
+            obj.receiverTableLatLon.CellEditCallback = @(tbl,~)obj.updateMetersFromLatLon();
 
             % Set array config button
             setBtnY = 28;
@@ -106,7 +115,7 @@ classdef arrayPanel < handle
                 'FontSize', 12, 'BackgroundColor', params.colors.items, ...
                 'ButtonPushedFcn', @obj.setArrayConfiguration);
 
-            % Save current config button
+            % Save config button
             saveBtnY = 4;
             obj.saveConfigBtn = uibutton('push', 'Parent', obj.panelHandle, ...
                 'Text', 'save current array configuration', ...
@@ -118,24 +127,47 @@ classdef arrayPanel < handle
         function data = buildTableData(obj, numReceivers, mode)
             hydNum = (1:numReceivers).';
             if strcmp(mode,'Meters')
-                xloc = zeros(size(hydNum));
-                yloc = xloc;
-                zloc = xloc;
-                data = table(hydNum, xloc, yloc, zloc, ...
+                data = table(hydNum, zeros(size(hydNum)), zeros(size(hydNum)), zeros(size(hydNum)), ...
                     'VariableNames', {'recNum','x_m','y_m','z_m'});
             else
-                lat = zeros(size(hydNum));
-                lon = lat;
-                zloc = lat;
-                data = table(hydNum, lat, lon, zloc, ...
+                data = table(hydNum, zeros(size(hydNum)), zeros(size(hydNum)), zeros(size(hydNum)), ...
                     'VariableNames', {'recNum','lat','lon','z_m'});
             end
         end
 
-        %% callback functions
+        %% --- Update Helpers ---
+        function updateMetersFromLatLon(obj)
+            originLat = obj.gridOriginLatEdit.Value;
+            originLon = obj.gridOriginLonEdit.Value;
+            tblLatLon = obj.receiverTableLatLon.Data;
+            tblMeters = table(tblLatLon.recNum, zeros(height(tblLatLon),1), zeros(height(tblLatLon),1), tblLatLon.z_m, ...
+                'VariableNames', {'recNum','x_m','y_m','z_m'});
+            for i = 1:height(tblLatLon)
+                [x, y] = utils.latlon2xy(tblLatLon.lat(i), tblLatLon.lon(i), originLat, originLon);
+                tblMeters.x_m(i) = x;
+                tblMeters.y_m(i) = y;
+            end
+            obj.receiverTableMeters.Data = tblMeters;
+            obj.metersTable = tblMeters;
+        end
+
+        function updateLatLonFromMeters(obj)
+            originLat = obj.gridOriginLatEdit.Value;
+            originLon = obj.gridOriginLonEdit.Value;
+            tblMeters = obj.receiverTableMeters.Data;
+            tblLatLon = table(tblMeters.recNum, zeros(height(tblMeters),1), zeros(height(tblMeters),1), tblMeters.z_m, ...
+                'VariableNames', {'recNum','lat','lon','z_m'});
+            for i = 1:height(tblMeters)
+                [lat, lon] = utils.xy2latlon(tblMeters.x_m(i), tblMeters.y_m(i), originLat, originLon);
+                tblLatLon.lat(i) = lat;
+                tblLatLon.lon(i) = lon;
+            end
+            obj.receiverTableLatLon.Data = tblLatLon;
+        end
+
+        %% Callbacks
         function changeNumberOfReceivers(obj, ~, eventData)
             numReceivers = eventData.Value;
-            % Rebuild both tables
             obj.receiverTableMeters.Data = obj.buildTableData(numReceivers,'Meters');
             obj.receiverTableLatLon.Data = obj.buildTableData(numReceivers,'LatLon');
         end
@@ -144,32 +176,30 @@ classdef arrayPanel < handle
             if obj.useRec1Check.Value
                 obj.gridOriginLatEdit.Enable = 'off';
                 obj.gridOriginLonEdit.Enable = 'off';
-                obj.updateOriginFromRec1();  % force update from rec 1 now
+                obj.updateOriginFromRec1();
             else
                 obj.gridOriginLatEdit.Enable = 'on';
                 obj.gridOriginLonEdit.Enable = 'on';
             end
+            %  always update meters after origin toggle
+            obj.updateMetersFromLatLon();
         end
 
         function updateOriginFromRec1(obj)
             if ~obj.useRec1Check.Value
-                return; % do nothing if unchecked
+                return;
             end
-
             activeTab = obj.unitsTabGroup.SelectedTab.Title;
             if strcmp(activeTab, 'Meters')
                 tblMeters = obj.receiverTableMeters.Data;
                 rec1 = tblMeters(tblMeters.recNum == 1, :);
                 if ~isempty(rec1)
-                    % Convert meters coordinates to lat/lon based on some reference origin
-                    % You might use (0,0) or the current origin values as the reference
                     [lat, lon] = utils.xy2latlon(rec1.x_m, rec1.y_m, ...
-                        obj.gridOriginLatEdit.Value, ...
-                        obj.gridOriginLonEdit.Value);
+                        obj.gridOriginLatEdit.Value, obj.gridOriginLonEdit.Value);
                     obj.gridOriginLatEdit.Value = lat;
                     obj.gridOriginLonEdit.Value = lon;
                 end
-            else % Lat/Lon tab active
+            else
                 tblLatLon = obj.receiverTableLatLon.Data;
                 rec1 = tblLatLon(tblLatLon.recNum == 1, :);
                 if ~isempty(rec1)
@@ -178,49 +208,15 @@ classdef arrayPanel < handle
                 end
             end
         end
+
         function setArrayConfiguration(obj, ~, ~)
-            activeTab = obj.unitsTabGroup.SelectedTab.Title;
-            originLat = obj.gridOriginLatEdit.Value;
-            originLon = obj.gridOriginLonEdit.Value;
-
-            if strcmp(activeTab, 'Meters')
-                % Get current meters data
-                tblMeters = obj.receiverTableMeters.Data;
-                tblMeters.z_m = -abs(tblMeters.z_m); % force negative depth
-
-                % Convert meters to lat/lon and update Lat/Lon table
-                tblLatLon = table(tblMeters.recNum, zeros(height(tblMeters),1), zeros(height(tblMeters),1), tblMeters.z_m, ...
-                    'VariableNames', {'recNum','lat','lon','z_m'});
-                for i = 1:height(tblMeters)
-                    [lat, lon] = utils.xy2latlon(tblMeters.x_m(i), tblMeters.y_m(i), originLat, originLon);
-                    tblLatLon.lat(i) = lat;
-                    tblLatLon.lon(i) = lon;
-                end
-                obj.receiverTableLatLon.Data = tblLatLon;
-
-                % Also store internal meters table for downstream use
-                obj.metersTable = tblMeters;
-
-            else % Lat/Lon tab active
-                % Get current lat/lon data
-                tblLatLon = obj.receiverTableLatLon.Data;
-                tblLatLon.z_m = -abs(tblLatLon.z_m); % force negative depth
-
-                % Convert lat/lon to meters and update Meters table
-                tblMeters = table(tblLatLon.recNum, zeros(height(tblLatLon),1), zeros(height(tblLatLon),1), tblLatLon.z_m, ...
-                    'VariableNames', {'recNum','x_m','y_m','z_m'});
-                for i = 1:height(tblLatLon)
-                    [x, y] = utils.latlon2xy(tblLatLon.lat(i), tblLatLon.lon(i), originLat, originLon);
-                    tblMeters.x_m(i) = x;
-                    tblMeters.y_m(i) = y;
-                end
-                obj.receiverTableMeters.Data = tblMeters;
-
-                % Also store internal meters table for downstream use
-                obj.metersTable = tblMeters;
-            end
+            %  Sync both tables before committing
+            obj.updateMetersFromLatLon();
+            obj.updateLatLonFromMeters();
+            obj.metersTable = obj.receiverTableMeters.Data;
         end
 
+        %% Load / Save
         function loadConfigFile(obj, ~, ~)
             [file, location] = uigetfile('*.mat', 'Select array configuration file', obj.wheresWhaledo.lastFilePath);
             if isequal(file,0) || isequal(location,0)
@@ -229,72 +225,39 @@ classdef arrayPanel < handle
             end
             obj.wheresWhaledo.lastFilePath = location;
             tmp = load(fullfile(location, file));
-
-            % Check for expected data
             if ~isfield(tmp, 'combinedTbl')
-                fprintf('\nError: array configuration file is missing combinedTbl\n');
+                fprintf('\nError: configuration missing combinedTbl\n');
                 return
             end
-            
             combinedTbl = tmp.combinedTbl;
-
-            % Auto-populate meters table
-            metersTbl = table(...
-                combinedTbl.recNum, ...
-                combinedTbl.x_m, combinedTbl.y_m, combinedTbl.z_m, ...
+            metersTbl = table(combinedTbl.recNum, combinedTbl.x_m, combinedTbl.y_m, combinedTbl.z_m, ...
                 'VariableNames', {'recNum','x_m','y_m','z_m'});
             obj.receiverTableMeters.Data = metersTbl;
-
-            % Auto-populate lat/lon table
-            latlonTbl = table(...
-                combinedTbl.recNum, ...
-                combinedTbl.lat, combinedTbl.lon, combinedTbl.z_m, ...
+            latlonTbl = table(combinedTbl.recNum, combinedTbl.lat, combinedTbl.lon, combinedTbl.z_m, ...
                 'VariableNames', {'recNum','lat','lon','z_m'});
             obj.receiverTableLatLon.Data = latlonTbl;
-
-            % Update grid origin if present
-            if isfield(tmp, 'gridOriginLat')
-                obj.gridOriginLatEdit.Value = tmp.gridOriginLat;
-            end
-            if isfield(tmp, 'gridOriginLon')
-                obj.gridOriginLonEdit.Value = tmp.gridOriginLon;
-            end
-
-            % update number of receivers:
+            if isfield(tmp, 'gridOriginLat'), obj.gridOriginLatEdit.Value = tmp.gridOriginLat; end
+            if isfield(tmp, 'gridOriginLon'), obj.gridOriginLonEdit.Value = tmp.gridOriginLon; end
             obj.numberOfReceivers.Value = height(obj.receiverTableMeters.Data);
-
-            % Update internal metersTable for downstream usage
             obj.metersTable = metersTbl;
-
-            fprintf('Array configuration loaded from %s\n', fullfile(location, file));
         end
 
         function saveConfigFile(obj, ~, ~)
-            [file, location] = uiputfile('*.mat', 'Select save location and file name', fullfile(obj.wheresWhaledo.lastFilePath, 'arrayTable'));
+            [file, location] = uiputfile('*.mat', 'Save array configuration', ...
+                fullfile(obj.wheresWhaledo.lastFilePath, 'arrayTable'));
             if isequal(file,0) || isequal(location,0)
                 fprintf('\ncanceled save\n')
                 return
             end
             obj.wheresWhaledo.lastFilePath = location;
-
-            % Use metersTable as authoritative values
             metersTbl = obj.receiverTableMeters.Data;
             latlonTbl = obj.receiverTableLatLon.Data;
-
-            % Build combined table
-            combinedTbl = table(...
-                metersTbl.recNum, ...
-                metersTbl.x_m, metersTbl.y_m, metersTbl.z_m, ...
+            combinedTbl = table(metersTbl.recNum, metersTbl.x_m, metersTbl.y_m, metersTbl.z_m, ...
                 latlonTbl.lat, latlonTbl.lon, ...
                 'VariableNames', {'recNum','x_m','y_m','z_m','lat','lon'});
-
-            % Save origin values too
             gridOriginLat = obj.gridOriginLatEdit.Value;
             gridOriginLon = obj.gridOriginLonEdit.Value;
-
-            % Save into MAT file
             save(fullfile(location, file), 'combinedTbl', 'gridOriginLat', 'gridOriginLon');
-            fprintf('Array configuration saved to %s\n', fullfile(location, file));
         end
     end
 end
