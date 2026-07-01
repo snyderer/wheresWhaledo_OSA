@@ -87,9 +87,12 @@ classdef gridSearch < handle
             
             obj.internalParams.Ngridpoints = length(obj.MOD.x_m)*length(obj.MOD.y_m)*length(obj.MOD.z_m);
 
-            obj.MOD.recloc_m = [obj.wheresWhaledo.arrayPanel.receiverTable.Data.x_m, ...
-                obj.wheresWhaledo.arrayPanel.receiverTable.Data.y_m, ...
-                obj.wheresWhaledo.arrayPanel.receiverTable.Data.z_m];
+            obj.MOD.recloc_m = [obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.x_m, ...
+                obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.y_m, ...
+                obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.z_m];
+
+            obj.MOD.gridOriginLatLon = [obj.wheresWhaledo.arrayPanel.gridOriginLatEdit.Value, obj.wheresWhaledo.arrayPanel.gridOriginLonEdit.Value];
+            
 
             obj.internalParams.Nrec = size(obj.MOD.recloc_m, 1);
 
@@ -148,13 +151,13 @@ classdef gridSearch < handle
                 [~, tmp] = unique(obj.DET.TDet(DETidx));
                 DETidx = DETidx(tmp);
                 
-                
-
                 Ndet = length(DETidx);
                 obj.LOC{iw} = obj.DET(DETidx, :);
                 obj.LOC{iw}.x_m = nan(Ndet, 1);
                 obj.LOC{iw}.y_m = nan(Ndet, 1);
                 obj.LOC{iw}.z_m = nan(Ndet, 1);
+                obj.LOC{iw}.lat = nan(Ndet, 1);
+                obj.LOC{iw}.lon = nan(Ndet, 1);
                 obj.LOC{iw}.CI95_x = nan(Ndet, 2);
                 obj.LOC{iw}.CI95_y = nan(Ndet, 2);
                 obj.LOC{iw}.CI95_z = nan(Ndet, 2);
@@ -187,7 +190,10 @@ classdef gridSearch < handle
                     obj.LOC{iw}.x_m(idet, :) = obj.MOD.grid(idxMax, 1);
                     obj.LOC{iw}.y_m(idet, :) = obj.MOD.grid(idxMax, 2);
                     obj.LOC{iw}.z_m(idet, :) = obj.MOD.grid(idxMax, 3);
-
+                    
+                    [obj.LOC{iw}.lat(idet, :), obj.LOC{iw}.lon(idet, :)] = utils.xy2latlon(obj.LOC{iw}.x_m(idet, :), obj.LOC{iw}.y_m(idet, :),...
+                        obj.MOD.gridOriginLatLon(1), obj.MOD.gridOriginLatLon(2));
+                    
                     idxX = (obj.MOD.grid(:, 2)==obj.MOD.grid(idxMax, 2)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
                     idxY = (obj.MOD.grid(:, 1)==obj.MOD.grid(idxMax, 1)) & (obj.MOD.grid(:, 3)==obj.MOD.grid(idxMax, 3));
                     idxZ = (obj.MOD.grid(:, 1)==obj.MOD.grid(idxMax, 1)) & (obj.MOD.grid(:, 2)==obj.MOD.grid(idxMax, 2));
@@ -200,12 +206,12 @@ classdef gridSearch < handle
                     Cy = cumsum(Ly)./sum(Ly);
                     Cz = cumsum(Lz)./sum(Lz);
 
-                    obj.LOC{iw}.CI95_x(idet, 1) = max([obj.MOD.x_m(Cx<=.025), nan]);
-                    obj.LOC{iw}.CI95_x(idet, 2) = min([obj.MOD.x_m(Cx>=.975), nan]);
-                    obj.LOC{iw}.CI95_y(idet, 1) = max([obj.MOD.y_m(Cy<=.025), nan]);
-                    obj.LOC{iw}.CI95_y(idet, 2) = min([obj.MOD.y_m(Cy>=.975), nan]);
-                    obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), nan]);
-                    obj.LOC{iw}.CI95_z(idet, 2) = min([obj.MOD.z_m(Cz>=.975), nan]);
+                    obj.LOC{iw}.CI95_x(idet, 1) = max([obj.MOD.x_m(Cx<=.025), obj.userParams.xmin_m]);
+                    obj.LOC{iw}.CI95_x(idet, 2) = min([obj.MOD.x_m(Cx>=.975), obj.userParams.xmax_m]);
+                    obj.LOC{iw}.CI95_y(idet, 1) = max([obj.MOD.y_m(Cy<=.025), obj.userParams.ymin_m]);
+                    obj.LOC{iw}.CI95_y(idet, 2) = min([obj.MOD.y_m(Cy>=.975), obj.userParams.ymax_m]);
+                    obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), obj.userParams.zmin_m]);
+                    obj.LOC{iw}.CI95_z(idet, 2) = min([obj.MOD.z_m(Cz>=.975), obj.userParams.zmax_m]);
                 end
             end
             

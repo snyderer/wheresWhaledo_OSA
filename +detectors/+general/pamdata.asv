@@ -55,7 +55,7 @@ classdef pamdata < handle
             obj.pamData = readtable(obj.userParams.PAMfileLocation, opts);
             obj.pamData.time_ml = datenum(obj.pamData.UTC);
 
-            obj.internalParams.recTable = obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data; % receiver table
+            obj.internalParams.recTable = obj.wheresWhaledo.arrayPanel.receiverTable.Data; % receiver table
             obj.internalParams.numRec = height(obj.internalParams.recTable); % number of receivers
             obj.internalParams.numTDOA = nchoosek(obj.internalParams.numRec, 2); % number of TDOAs per detection
             
@@ -116,9 +116,9 @@ classdef pamdata < handle
             if obj.userParams.rejFilterFreq > 0 && obj.userParams.rejFilterFreq < fs/2
                 useBandRejectFilter = true;
                 frej = (obj.userParams.rejFilterFreq + [-300, 300]);
-                frej(1) = max([frej(1), 1]);
-                frej(2) = min([frej(2), fs/2-1]);
-                [breject, areject] = butter(obj.userParams.rejFilterOrder, (frej).*2./fs, 'stop');
+                frej[1] = max([frej[1], 1]);
+                frej[2] = min([frej[2], fs/2-1]);
+                [breject, areject] = butter(obj.userParams.rejFilterOrder, (obj.userParams.rejFilterFreq + [-300, 300]).*2./fs, 'stop');
             else
                 useBandRejectFilter = false;
             end
@@ -148,9 +148,7 @@ classdef pamdata < handle
 
                 x = audioread(wavfile, [n1, n2]);
                 x = filtfilt(b, 1, x);
-                if useBandRejectFilter
-                    x = filtfilt(breject, areject, x);
-                end
+                x = filtfilt(breject, areject, x);
 
                 [xc, lags] = xcov(x, maxLags);
                 for npair = 1:obj.internalParams.numTDOA

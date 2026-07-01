@@ -234,16 +234,22 @@ classdef localizePanel < handle
         end
 
         function makeVideo(obj)
+            % TODO have user-customizable parameters passed into
+            % makeMovie_2D (maybe dialogue box or GUI)
             [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
             saveloc = fullfile(savepath, [savename, '.mp4']);
-            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc)
+            videoParams.xlim = [min(obj.MOD.x_m, [], 'all'), max(obj.MOD.x_m, [], 'all')];
+            videoParams.ylim = [min(obj.MOD.y_m, [], 'all'), max(obj.MOD.y_m, [], 'all')];
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc, 60, videoParams)
         end
         function runLocalizer(obj, ~, ~)
-            wb = waitbar(.25, 'Localizing');
+            [~, savename, ~] = fileparts(obj.saveLocalizationsLocation);
+            wb = waitbar(.25, 'Localizing', 'Name', 'localizing');
+            wb.Type
             obj.LOC = obj.localizer.run;
-            waitbar(.6, wb, ['Saving CSV to ', obj.saveLocalizationsLocation(1:end-3)]);
+            waitbar(.6, wb, ['Saving CSV to ', savename, '.csv']);
             obj.makeCSV
-            waitbar(.75, wb, ['Generating and writing video to  ', obj.saveLocalizationsLocation(1:end-3), '.mp4']);
+            waitbar(.75, wb, ['Generating and writing video to  ', savename, '.mp4']);
             obj.makeVideo
 
             waitbar(1, wb, 'Localization Complete!')

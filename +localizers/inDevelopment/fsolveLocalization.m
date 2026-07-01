@@ -26,7 +26,7 @@ function defineUserParams(obj)
             obj.userParams.rejFilterFreq.type = 'numerical';
             obj.userParams.rejFilterFreq.description = 'band reject center frequency [Hz]';
 
-            recTable = obj.wheresWhaledo.arrayPanel.receiverTable.Data;
+            recTable = obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data;
             maxrng = max(sqrt(recTable.x_m.^2 + recTable.y_m.^2 + recTable.z_m.^2)); % estimate of maximum TDOA
             obj.userParams.maxTDOA.value = max([2*maxrng/1480, 1]);
             obj.userParams.maxTDOA.type = 'numerical';

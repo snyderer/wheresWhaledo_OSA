@@ -16,7 +16,7 @@ if istable(hydLoc)
 end
 if nargin<3; saveFileName = './movie.mp4'; end
 if nargin<4; speedUpRate = 60; end
-if nargin<5
+if nargin<5 || ~isfield(params, 'colors')
     params.colors = [0, 0, 0; % unlabeled
         0.984314, 0.603922, 0.600000; % whale 1
         0.756863, 0.874510, 0.541176; % whale 2
@@ -98,10 +98,23 @@ else
     return
 end
 
-xlimVals = [min([CI95_x_lo; hydLoc(:, 1)]), max([CI95_x_hi; hydLoc(:, 1)])];
-xlimVals = xlimVals + diff(xlimVals).*[-.1, .1];
-ylimVals = [min([CI95_y_lo; hydLoc(:, 2)]), max([CI95_y_hi; hydLoc(:, 2)])];
-ylimVals = ylimVals + diff(ylimVals).*[-.1, .1];
+if isfield(params, 'xlim')
+    xlimVals = params.xlim;
+else
+    xlimVals = [min([CI95_x_lo; hydLoc(:, 1)]), max([CI95_x_hi; hydLoc(:, 1)])];
+    xlimVals = xlimVals + diff(xlimVals).*[-.1, .1];
+end
+if isfield(params, 'ylim')
+    ylimVals = params.ylim;
+else
+    ylimVals = [min([CI95_y_lo; hydLoc(:, 2)]), max([CI95_y_hi; hydLoc(:, 2)])];
+    ylimVals = ylimVals + diff(ylimVals).*[-.1, .1];
+end
+
+CI95_x_lo(isnan(CI95_x_lo)) = params.xlim(1);
+CI95_x_hi(isnan(CI95_x_hi)) = params.xlim(2);
+CI95_y_lo(isnan(CI95_y_lo)) = params.ylim(1);
+CI95_y_hi(isnan(CI95_y_hi)) = params.ylim(2);
 
 % begin plotting and saving video frames:
 vidfile = VideoWriter(saveFileName,'MPEG-4');
@@ -126,7 +139,6 @@ try
             dist = sqrt((xci_mesh - x(i, iw)).^2 + (yci_mesh - y(i, iw)).^2);
             L = -dist.^2;
 
-
             imagesc(xci, yci, L)
             colormap(flipud(gray))
             set(gca, 'YDir', 'normal')
@@ -149,5 +161,6 @@ try
     close(vidfile)
 catch ME
     errorMessage = ME;
+    errorMessage
     close(vidfile)
 end

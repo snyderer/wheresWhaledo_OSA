@@ -16,7 +16,7 @@ for i1 = 1:numRec
     for i2 = 1:numRec
         ixcov = ixcov+1;
         if i2>i1
-            r = sqrt((receiverTable.("x [m]")(i1) - receiverTable.("x [m]")(i2)).^2 + (receiverTable.("y [m]")(i1) - receiverTable.("y [m]")(i2)).^2+ (receiverTable.("z [m]")(i1) - receiverTable.("z [m]")(i2)).^2);
+            r = sqrt((receiverTableMeters.("x [m]")(i1) - receiverTableMeters.("x [m]")(i2)).^2 + (receiverTableMeters.("y [m]")(i1) - receiverTableMeters.("y [m]")(i2)).^2+ (receiverTableMeters.("z [m]")(i1) - receiverTableMeters.("z [m]")(i2)).^2);
             rmax = max([rmax, r]);
             itdoa = itdoa+1;
             indXcorr(itdoa) = ixcov;
@@ -34,8 +34,8 @@ ping_numbers = PING.Ping;
 ping_times = datenum(PING.Date_Time_GMT);
 expected_TDOA = nan(length(xsrc), Ntdoa);
 for ipair = 1:Ntdoa
-    r1 = sqrt((xsrc - receiverTable.("x [m]")(recPairs(ipair, 1))).^2 + (ysrc - receiverTable.("y [m]")(recPairs(ipair, 1))).^2);
-    r2 = sqrt((xsrc - receiverTable.("x [m]")(recPairs(ipair, 2))).^2 + (ysrc - receiverTable.("y [m]")(recPairs(ipair, 2))).^2);
+    r1 = sqrt((xsrc - receiverTableMeters.("x [m]")(recPairs(ipair, 1))).^2 + (ysrc - receiverTableMeters.("y [m]")(recPairs(ipair, 1))).^2);
+    r2 = sqrt((xsrc - receiverTableMeters.("x [m]")(recPairs(ipair, 2))).^2 + (ysrc - receiverTableMeters.("y [m]")(recPairs(ipair, 2))).^2);
     expected_TDOA(:, ipair) = (r1-r2)./c;
 end
 
@@ -120,7 +120,7 @@ for sp = 1:size(TDOA, 2)
 end
 
 fig = figure(23);
-plot(receiverTable.("x [m]"), receiverTable.("y [m]"), 'ks')
+plot(receiverTableMeters.("x [m]"), receiverTableMeters.("y [m]"), 'ks')
 hold on
 plot(xsrc, ysrc, '.')
 hold off
@@ -146,11 +146,11 @@ c = 1500;
 
 mTDOA = zeros(length(X), Ntdoa);
 i = 0;
-for i1 = 1:size(receiverTable, 1)
-    for i2 = (i1+1):size(receiverTable, 1)
+for i1 = 1:size(receiverTableMeters, 1)
+    for i2 = (i1+1):size(receiverTableMeters, 1)
         i = i+1;
-        mTDOA(:, i) = -(sqrt((X-receiverTable.("x [m]")(i1)).^2 + (Y-receiverTable.("z [m]")(i1)).^2 + (zmod-receiverTable.("z [m]")(i1)).^2)./c ...
-            - sqrt((X-receiverTable.("x [m]")(i2)).^2 + (Y-receiverTable.("z [m]")(i2)).^2 + (zmod-receiverTable.("z [m]")(i2)).^2)./c);
+        mTDOA(:, i) = -(sqrt((X-receiverTableMeters.("x [m]")(i1)).^2 + (Y-receiverTableMeters.("z [m]")(i1)).^2 + (zmod-receiverTableMeters.("z [m]")(i1)).^2)./c ...
+            - sqrt((X-receiverTableMeters.("x [m]")(i2)).^2 + (Y-receiverTableMeters.("z [m]")(i2)).^2 + (zmod-receiverTableMeters.("z [m]")(i2)).^2)./c);
     end
 end
 
