@@ -16,6 +16,7 @@ if istable(hydLoc)
 end
 if nargin<3; saveFileName = './movie.mp4'; end
 if nargin<4; speedUpRate = 60; end
+
 if nargin<5 || ~isfield(params, 'colors')
     params.colors = [0, 0, 0; % unlabeled
         0.984314, 0.603922, 0.600000; % whale 1
@@ -30,6 +31,10 @@ if nargin<5 || ~isfield(params, 'colors')
 end
 errorMessage = [];
 numWhales = numel(LOC);
+if any(params.colors(1, :)~=[0,0,0])
+    baseColors = [0, 0, 0];   % unlabeled whales stay black
+    params.colors = [baseColors; params.colors];
+end
 
 TDet_min = nan;
 TDet_max = nan;
@@ -98,6 +103,7 @@ else
     return
 end
 
+
 if isfield(params, 'xlim')
     xlimVals = params.xlim;
 else
@@ -133,6 +139,16 @@ try
         for iw = 1:numWhales
             xci = linspace(CI95_x_lo(i, iw),CI95_x_hi(i, iw), 100);
             yci = linspace(CI95_y_lo(i, iw),CI95_y_hi(i, iw), 100);
+            
+            % Skipping just the "imagesc" block when CI95 values are NaN (JS)
+            if ~any(isnan(xci)) && ~any(isnan(yci)) 
+                [xci_mesh, yci_mesh] = meshgrid(xci, yci);
+                dist = sqrt((xci_mesh - x(i, iw)).^2 + (yci_mesh - y(i, iw)).^2);
+                L = -dist.^2;
+                imagesc(xci, yci, L)
+                colormap(flipud(gray))
+                set(gca, 'YDir', 'normal')
+            end
 
             [xci_mesh, yci_mesh] = meshgrid(xci, yci);
 
@@ -144,7 +160,7 @@ try
             set(gca, 'YDir', 'normal')
 
             hold on
-            plot(xsm(1:i, iw), ysm(1:i, iw), 'Color', params.colors(iw+1, :))
+            %plot(xsm(1:i, iw), ysm(1:i, iw), 'Color', params.colors(iw+1, :))
             plot(x(i, iw), y(i, iw), '.', 'MarkerSize', 24, 'Color', params.colors(iw+1, :))
             plot(hydLoc(:, 1), hydLoc(:,2), 'ks')
         end

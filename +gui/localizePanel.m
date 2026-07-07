@@ -222,7 +222,7 @@ classdef localizePanel < handle
                     LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
                 end
                 [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
-                saveloc = fullfile(savepath, [savename, '.csv']);
+                saveloc = fullfile(savepath, sprintf('%s_whale%d.csv', savename, iw)); % Fixed repeated filenaming error (JS)
                
                 writetable(LOC, saveloc)
             end
@@ -238,10 +238,12 @@ classdef localizePanel < handle
             % makeMovie_2D (maybe dialogue box or GUI)
             [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
             saveloc = fullfile(savepath, [savename, '.mp4']);
+
             videoParams.xlim = [min(obj.MOD.x_m, [], 'all'), max(obj.MOD.x_m, [], 'all')];
             videoParams.ylim = [min(obj.MOD.y_m, [], 'all'), max(obj.MOD.y_m, [], 'all')];
-            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc, 60, videoParams)
+            utils.makeMovie_2D(obj.LOC, obj.MOD.recloc_m, saveloc, 300, videoParams)
         end
+
         function runLocalizer(obj, ~, ~)
             [~, savename, ~] = fileparts(obj.saveLocalizationsLocation);
             wb = waitbar(.25, 'Localizing', 'Name', 'localizing');
@@ -251,7 +253,7 @@ classdef localizePanel < handle
             obj.makeCSV
             waitbar(.75, wb, ['Generating and writing video to  ', savename, '.mp4']);
             obj.makeVideo
-
+        
             waitbar(1, wb, 'Localization Complete!')
             pause(.3)
             close(wb)

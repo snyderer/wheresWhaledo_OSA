@@ -264,8 +264,13 @@ classdef brushTDOA < handle
                 set(ax(iax), 'CData', obj.params.colors(obj.data.label+1, :))
                 set(ax(iax), 'BrushData', zeros(size(brshed{iax})))
             end
-            DET = obj.data;
-            save(obj.saveLoc, 'DET')
+
+            DET = obj.data; % Added saftey check to save logic if a save location isn't set (JSS)
+            if ~isempty(obj.saveLoc) && (ischar(obj.saveLoc) || isstring(obj.saveLoc))
+                save(obj.saveLoc, 'DET')
+            else
+                warning('In BrushTDOA: Save location is not set. Set a save location on the detector panel to store data on file.')
+            end
             if ~isempty(obj.updateCallback)
                 obj.updateCallback(obj.data);
             end

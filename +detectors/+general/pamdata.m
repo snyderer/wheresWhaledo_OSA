@@ -42,6 +42,7 @@ classdef pamdata < handle
             obj.userParams.rejFilterFreq.description = 'band reject center frequency [Hz]';
 
             recTable = obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data;
+
             maxrng = max(sqrt(recTable.x_m.^2 + recTable.y_m.^2 + recTable.z_m.^2)); % estimate of maximum TDOA
             obj.userParams.maxTDOA.value = max([2*maxrng/1480, 1]);
             obj.userParams.maxTDOA.type = 'numerical';
@@ -51,7 +52,7 @@ classdef pamdata < handle
         function setInternalParams(obj)
             % read in PAMGAURD table:
             opts = detectImportOptions(obj.userParams.PAMfileLocation);
-            opts = setvaropts(opts,'UTC','InputFormat','MM/dd/uuuu HH:mm:ss.SSS');
+            opts = setvaropts(opts,'UTC','InputFormat','yyyy-MM-dd HH:mm:ss.SSS');
             obj.pamData = readtable(obj.userParams.PAMfileLocation, opts);
             obj.pamData.time_ml = datenum(obj.pamData.UTC);
 
@@ -106,7 +107,7 @@ classdef pamdata < handle
 
             fileLength_samples = info.TotalSamples;
             fileLength_s = fileLength_samples/fs;
-            fileStartTime = datenum(wavfile(end-18:end-4), 'yyyymmdd-HHMMSS');
+           fileStartTime = datenum(strrep(wavfile(end-18:end-4),'_','-'), 'yyyymmdd-HHMMSS'); % Fixed issue with '-' (JS)
             fileEndTime = fileStartTime + fileLength_s/spd;
 
             % Trim PAMGAURD table to just those detections within in current wav file:
@@ -129,7 +130,7 @@ classdef pamdata < handle
             TDet = nan(numDet, 1);
             for nt = 1:numDet
                 f1 = max([T.freqMin(nt), 1]);
-                f2 = min([T.freqMin(nt), fs/2]);
+                f2 = min([T.freqMax(nt), fs/2]); % Fixed incorrect assignment to freqMin (JS)
                 
                 if f2-f1 < 5 % too narrowband for default bandpass filter
                     f = max([f1, f2]);

@@ -92,7 +92,6 @@ classdef gridSearch < handle
                 obj.wheresWhaledo.arrayPanel.receiverTableMeters.Data.z_m];
 
             obj.MOD.gridOriginLatLon = [obj.wheresWhaledo.arrayPanel.gridOriginLatEdit.Value, obj.wheresWhaledo.arrayPanel.gridOriginLonEdit.Value];
-            
 
             obj.internalParams.Nrec = size(obj.MOD.recloc_m, 1);
 
