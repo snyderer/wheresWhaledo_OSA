@@ -75,10 +75,10 @@ classdef detectorPanel < handle
             % select input wav file text box:
             boxPosition(1) = 4;
             boxPosition(2) = obj.detectorListHandle.Position(2) - 24;
-            boxPosition(3) = 330;
+            boxPosition(3) = 260;
             boxPosition(4) = 20;
             obj.wavFileBoxHandle = uieditfield(obj.panelHandle, 'text', ...
-                'Placeholder', '[enter path to wav file(s)...]', ...
+                'Placeholder', '[enter path to wav files...]', ...
                 'Position', boxPosition, 'ValueChangedFcn', @obj.populateText);
             % select folder for wav file:
             buttonPosition = boxPosition;
@@ -92,12 +92,12 @@ classdef detectorPanel < handle
             obj.selectWavFileButtonHandle.InnerPosition = obj.selectWavFileButtonHandle.InnerPosition + [0, -2, 2, 2];
             
             % % checkbox to run on full directory: 
-            % checkboxPosition(1) = buttonPosition(1) + buttonPosition(3) + 4;
-            % checkboxPosition(2) = boxPosition(2);
-            % checkboxPosition(3) = panelPosition(3) - checkboxPosition(1) - 4;
-            % checkboxPosition(4) = boxPosition(4);
-            % obj.runOnDirectoryCheckbox = uicheckbox("Parent", obj.panelHandle, ...
-            %     "Text", "full directory", "Position", checkboxPosition, "Value", 1);
+            checkboxPosition(1) = buttonPosition(1) + buttonPosition(3) + 4;
+            checkboxPosition(2) = boxPosition(2);
+            checkboxPosition(3) = panelPosition(3) - checkboxPosition(1) - 4;
+            checkboxPosition(4) = boxPosition(4);
+            obj.runOnDirectoryCheckbox = uicheckbox("Parent", obj.panelHandle, ...
+                "Text", "full directory", "Position", checkboxPosition, "Value", 1);
 
             % select save location
             boxPosition(2) = obj.selectWavFileButtonHandle.Position(2) - 24;

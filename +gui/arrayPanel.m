@@ -56,8 +56,6 @@ classdef arrayPanel < handle
 
             % Grid origin label + inputs
             originY = recvY - 40;
-            uilabel('Parent', obj.panelHandle, 'Text', 'Grid origin:', ...
-                'Position', [150, originY, 80, 15], 'HorizontalAlignment', 'Right');
 
             % Checkbox next to origin label
             obj.useRec1Check = uicheckbox('Parent', obj.panelHandle, ...
@@ -67,20 +65,24 @@ classdef arrayPanel < handle
                 'ValueChangedFcn', @(src,~)obj.toggleOriginFields());
 
             % Labels
-            uilabel('Parent', obj.panelHandle, 'Text', 'lat', ...
-                'Position', [235, originY + 18, 60, 15], 'HorizontalAlignment', 'center');
-            uilabel('Parent', obj.panelHandle, 'Text', 'lon', ...
-                'Position', [300, originY + 18, 60, 15], 'HorizontalAlignment', 'center');
+            uilabel('Parent', obj.panelHandle, 'Text', 'origin lat:', ...
+                'Position', [160, originY + 18, 90, 15], 'HorizontalAlignment', 'center');
+            uilabel('Parent', obj.panelHandle, 'Text', 'origin lon:', ...
+                'Position', [260, originY + 18, 90, 15], 'HorizontalAlignment', 'center');
 
             % Origin edit fields with listeners
             obj.gridOriginLatEdit = uieditfield(obj.panelHandle, 'numeric', ...
-                'Position', [235, originY, 60, 15], 'Tooltip', 'Latitude, decimal degrees');
+                'Position', [160, originY, 90, 15], ...
+                'Tooltip', 'Latitude, decimal degrees', ...
+                'ValueDisplayFormat', '%.6f', 'Enable', 'off');
             obj.gridOriginLonEdit = uieditfield(obj.panelHandle, 'numeric', ...
-                'Position', [300, originY, 60, 15], 'Tooltip', 'Longitude, decimal degrees');
+                'Position', [260, originY, 90, 15], ...
+                'Tooltip', 'Longitude, decimal degrees', ...
+                'ValueDisplayFormat', '%.6f', 'Enable', 'off');
 
-            % Recalculate meters from lat/lon when origin changes
-            obj.gridOriginLatEdit.ValueChangedFcn = @(src,~)obj.updateMetersFromLatLon();
-            obj.gridOriginLonEdit.ValueChangedFcn = @(src,~)obj.updateMetersFromLatLon();
+            % Update appropriate table based on active tab when origin changes
+            obj.gridOriginLatEdit.ValueChangedFcn = @(src,~)obj.updateBasedOnActiveTab();
+            obj.gridOriginLonEdit.ValueChangedFcn = @(src,~)obj.updateBasedOnActiveTab();
 
             % Units tab group
             tableY = originY - 260;
@@ -94,8 +96,8 @@ classdef arrayPanel < handle
                 'ColumnEditable', true, 'FontSize', 13, ...
                 'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36]);
 
-            %  When meters table is edited, update lat/lon
-            obj.receiverTableMeters.CellEditCallback = @(tbl,~)obj.updateLatLonFromMeters();
+            % When meters table is edited, update lat/lon
+            obj.receiverTableMeters.CellEditCallback = @(tbl,eventData)obj.onMetersTableEdit(eventData);
 
             % Lat/Lon tab
             obj.latlonTab = uitab(obj.unitsTabGroup, 'Title', 'Lat/Lon');
@@ -105,9 +107,9 @@ classdef arrayPanel < handle
                 'Position', [10, 10, obj.unitsTabGroup.Position(3)-20, obj.unitsTabGroup.Position(4)-36]);
 
             % When lat/lon table is edited, update meters
-            obj.receiverTableLatLon.CellEditCallback = @(tbl,~)obj.updateMetersFromLatLon();
+            obj.receiverTableLatLon.CellEditCallback = @(tbl,eventData)obj.onLatLonTableEdit(eventData);
 
-            % Set array config button
+            % Set array config buton
             setBtnY = 28;
             obj.setConfigBtn = uibutton('push', 'Parent', obj.panelHandle, ...
                 'Text', 'set array configuration', ...
@@ -135,7 +137,19 @@ classdef arrayPanel < handle
             end
         end
 
-        %% --- Update Helpers ---
+        %% Lat/lon/meters Update Helpers
+        function updateBasedOnActiveTab(obj)
+            % Update the appropriate table based on which tab is currently active
+            activeTab = obj.unitsTabGroup.SelectedTab.Title;
+            if strcmp(activeTab, 'Meters')
+                % Meters tab is active, so update lat/lon from meters
+                obj.updateLatLonFromMeters();
+            else
+                % Lat/lon tab is active, so update meters from lat/lon
+                obj.updateMetersFromLatLon();
+            end
+        end
+
         function updateMetersFromLatLon(obj)
             originLat = obj.gridOriginLatEdit.Value;
             originLon = obj.gridOriginLonEdit.Value;
@@ -165,6 +179,34 @@ classdef arrayPanel < handle
             obj.receiverTableLatLon.Data = tblLatLon;
         end
 
+
+        function updateOriginFromRec1(obj)
+            if ~obj.useRec1Check.Value
+                return;
+            end
+
+            activeTab = obj.unitsTabGroup.SelectedTab.Title;
+            if strcmp(activeTab, 'Meters')
+                % If we're on the meters tab, get rec 1 from meters table
+                tblMeters = obj.receiverTableMeters.Data;
+                rec1 = tblMeters(tblMeters.recNum == 1, :);
+                if ~isempty(rec1)
+                    % Convert rec 1's current position to lat/lon using current origin
+                    [lat, lon] = utils.xy2latlon(rec1.x_m, rec1.y_m, ...
+                        obj.gridOriginLatEdit.Value, obj.gridOriginLonEdit.Value);
+                    obj.gridOriginLatEdit.Value = lat;
+                    obj.gridOriginLonEdit.Value = lon;
+                end
+            else
+                % If we're on the lat/lon tab, get rec 1 from lat/lon table
+                tblLatLon = obj.receiverTableLatLon.Data;
+                rec1 = tblLatLon(tblLatLon.recNum == 1, :);
+                if ~isempty(rec1)
+                    obj.gridOriginLatEdit.Value = rec1.lat;
+                    obj.gridOriginLonEdit.Value = rec1.lon;
+                end
+            end
+        end
         %% Callbacks
         function changeNumberOfReceivers(obj, ~, eventData)
             numReceivers = eventData.Value;
@@ -182,31 +224,7 @@ classdef arrayPanel < handle
                 obj.gridOriginLonEdit.Enable = 'on';
             end
             %  always update meters after origin toggle
-            obj.updateMetersFromLatLon();
-        end
-
-        function updateOriginFromRec1(obj)
-            if ~obj.useRec1Check.Value
-                return;
-            end
-            activeTab = obj.unitsTabGroup.SelectedTab.Title;
-            if strcmp(activeTab, 'Meters')
-                tblMeters = obj.receiverTableMeters.Data;
-                rec1 = tblMeters(tblMeters.recNum == 1, :);
-                if ~isempty(rec1)
-                    [lat, lon] = utils.xy2latlon(rec1.x_m, rec1.y_m, ...
-                        obj.gridOriginLatEdit.Value, obj.gridOriginLonEdit.Value);
-                    obj.gridOriginLatEdit.Value = lat;
-                    obj.gridOriginLonEdit.Value = lon;
-                end
-            else
-                tblLatLon = obj.receiverTableLatLon.Data;
-                rec1 = tblLatLon(tblLatLon.recNum == 1, :);
-                if ~isempty(rec1)
-                    obj.gridOriginLatEdit.Value = rec1.lat;
-                    obj.gridOriginLonEdit.Value = rec1.lon;
-                end
-            end
+            obj.updateBasedOnActiveTab();
         end
 
         function setArrayConfiguration(obj, ~, ~)
@@ -214,6 +232,40 @@ classdef arrayPanel < handle
             obj.updateMetersFromLatLon();
             obj.updateLatLonFromMeters();
             obj.metersTable = obj.receiverTableMeters.Data;
+        end
+
+        function onMetersTableEdit(obj, eventData)
+            % If use rec 1 as origin is checked and user tries to edit rec 1's x or y position
+            if obj.useRec1Check.Value && eventData.Indices(1) == 1 && (eventData.Indices(2) == 2 || eventData.Indices(2) == 3)
+                % Reset rec 1's x and y to 0,0 (columns 2 and 3 are x_m and y_m)
+                tblData = obj.receiverTableMeters.Data;
+                tblData.x_m(1) = 0;
+                tblData.y_m(1) = 0;
+                obj.receiverTableMeters.Data = tblData;
+
+                % Update lat/lon table
+                obj.updateLatLonFromMeters();
+                return;  % Don't process further
+            end
+
+            % Check if receiver 1 was edited and checkbox is checked (for z position or other edits)
+            if obj.useRec1Check.Value && eventData.Indices(1) == 1 && eventData.Indices(2) > 1
+                % Receiver 1's position was edited, update origin
+                obj.updateOriginFromRec1();
+            end
+
+            % Always update the other table
+            obj.updateLatLonFromMeters();
+        end
+
+        function onLatLonTableEdit(obj, eventData)
+            % Check if receiver 1 was edited and checkbox is checked
+            if obj.useRec1Check.Value && eventData.Indices(1) == 1 && eventData.Indices(2) > 1
+                % Receiver 1's position was edited, update origin
+                obj.updateOriginFromRec1();
+            end
+            % update the other table
+            obj.updateMetersFromLatLon();
         end
 
         %% Load / Save
