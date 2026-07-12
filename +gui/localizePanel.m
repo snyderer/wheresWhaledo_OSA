@@ -196,37 +196,70 @@ classdef localizePanel < handle
         end
         
         function makeCSV(obj)
+            num_receivers = height(obj.wheresWhaledo.arrayPanel.metersTable);
+            num_tdoas = size(obj.MOD.hydPairs, 1);
+
             for iw = 1:numel(obj.LOC)
                 LOC = table;
                 idx = ~isnan(obj.LOC{iw}.x_m);
-                LOC.TDet = obj.LOC{iw}.TDet(idx);
-                LOC.label = obj.LOC{iw}.label(idx);
-                LOC.x_m = obj.LOC{iw}.x_m(idx);
-                LOC.y_m = obj.LOC{iw}.y_m(idx);
-                LOC.z_m = obj.LOC{iw}.z_m(idx);
-                LOC.CI95_x_lo = obj.LOC{iw}.CI95_x(idx, 1);
-                LOC.CI95_x_hi = obj.LOC{iw}.CI95_x(idx, 2);
-                LOC.CI95_y_lo = obj.LOC{iw}.CI95_y(idx, 1);
-                LOC.CI95_y_hi = obj.LOC{iw}.CI95_y(idx, 2);
-                LOC.CI95_z_lo = obj.LOC{iw}.CI95_z(idx, 1);
-                LOC.CI95_z_hi = obj.LOC{iw}.CI95_z(idx, 2);
-                
-                for itdoa = 1:size(obj.MOD.hydPairs, 1)
-                    str = sprintf('TDOA_%i%i', obj.MOD.hydPairs(itdoa, :));
-                    LOC.(str) = obj.LOC{iw}.TDOA(idx, itdoa);
 
-                    str = sprintf('TDOAi_%i%i', obj.MOD.hydPairs(itdoa, :));
-                    LOC.(str) = obj.LOC{iw}.TDOAi(idx, itdoa);
+                % Get all variable names from the original table
+                varNames = obj.LOC{iw}.Properties.VariableNames;
 
-                    str = sprintf('XAmp_%i%i', obj.MOD.hydPairs(itdoa, :));
-                    LOC.(str) = obj.LOC{iw}.XAmp(idx, itdoa);
+                for i = 1:length(varNames)
+                    varName = varNames{i};
+                    varData = obj.LOC{iw}.(varName);
+
+                    % Apply the index filter
+                    if isnumeric(varData) && size(varData, 1) > 1
+                        varData = varData(idx, :);
+                    elseif iscell(varData) && size(varData, 1) > 1
+                        varData = varData(idx, :);
+                    elseif isstring(varData) && size(varData, 1) > 1
+                        varData = varData(idx, :);
+                    end
+
+                    % Determine how to handle based on size
+                    if size(varData, 2) == 1
+                        % Single column - keep original name
+                        LOC.(varName) = varData;
+
+                    elseif size(varData, 2) == num_tdoas
+                        % Same number of columns as TDOAs - add TDOA pair suffixes
+                        for itdoa = 1:num_tdoas
+                            newVarName = sprintf('%s_%i%i', varName, obj.MOD.hydPairs(itdoa, :));
+                            LOC.(newVarName) = varData(:, itdoa);
+                        end
+
+                    elseif size(varData, 2) == num_receivers
+                        % Same number of columns as receivers - add receiver suffixes
+                        for irec = 1:num_receivers
+                            newVarName = sprintf('%s_%i', varName, irec);
+                            LOC.(newVarName) = varData(:, irec);
+                        end
+
+                    else
+                        % Handle special cases like CI95 matrices (2 columns)
+                        if size(varData, 2) == 2 && contains(varName, 'CI95')
+                            % Handle confidence intervals specially
+                            LOC.([varName, '_lo']) = varData(:, 1);
+                            LOC.([varName, '_hi']) = varData(:, 2);
+                        else
+                            % For other multi-column cases, add column index
+                            for icol = 1:size(varData, 2)
+                                newVarName = sprintf('%s_%i', varName, icol);
+                                LOC.(newVarName) = varData(:, icol);
+                            end
+                        end
+                    end
                 end
-                [savepath,savename,~] = fileparts(obj.saveLocalizationsLocation);
-                saveloc = fullfile(savepath, sprintf('%s_whale%d.csv', savename, iw)); % Fixed repeated filenaming error (JS)
-               
-                writetable(LOC, saveloc)
-            end
+                
 
+                % Save the CSV file
+                [savepath, savename, ~] = fileparts(obj.saveLocalizationsLocation);
+                saveloc = fullfile(savepath, sprintf('%s_whale%d.csv', savename, iw));
+                writetable(LOC, saveloc);
+            end
         end
 
         function makePlot(obj)

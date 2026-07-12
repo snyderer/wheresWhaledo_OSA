@@ -65,7 +65,7 @@ classdef gridSearch < handle
             obj.userParams.windowLength.type = 'numerical';
             obj.userParams.windowLength.description = 'length of window for smoothing [samples]. =0 means no smoothing.';
 
-            obj.userParams.sigma.value = 10;
+            obj.userParams.sigma.value = 120;
             obj.userParams.sigma.type = 'numerical';
             obj.userParams.sigma.description = 'Standand dev. of hydrophone positions [m]';
         end
@@ -137,7 +137,8 @@ classdef gridSearch < handle
                     obj.prepare
                 end
             end
-            sigma = sqrt(2*obj.userParams.sigma^2/1500^2 + .01^2);
+
+            sigma2_recPos = sqrt(2*obj.userParams.sigma^2/1500^2); % confidence interval on hydrophone position estimate, in seconds
             
             if isempty(obj.DET.label)
                 print('Cannot localize. \nNo detections found.')
@@ -160,7 +161,10 @@ classdef gridSearch < handle
                 obj.LOC{iw}.CI95_x = nan(Ndet, 2);
                 obj.LOC{iw}.CI95_y = nan(Ndet, 2);
                 obj.LOC{iw}.CI95_z = nan(Ndet, 2);
-
+                obj.LOC{iw}.CI95_x_dist = nan(Ndet, 1);
+                obj.LOC{iw}.CI95_y_dist = nan(Ndet, 1);
+                obj.LOC{iw}.CI95_z_dist = nan(Ndet, 1);
+                
                 switch obj.userParams.windowLength
                     case 0 % no interpolation
                         obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
@@ -181,9 +185,22 @@ classdef gridSearch < handle
                         end
                 end
                 for idet = 1:Ndet
-                    numNotNan = sum(~isnan(obj.LOC{iw}.TDOAi(idet, :)));
+                    idxNotNan = ~isnan(obj.LOC{iw}.TDOA(idet, :));
+                    numNotNan = sum(idxNotNan);
+                    if numNotNan < 3
+                        continue
+                    end
                     err = sum((obj.MOD.TDOA - obj.LOC{iw}.TDOAi(idet, :)).^2, 2);
-                    L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
+                    
+                    % uncertainty calculation (sigma):
+                    bandwidth = obj.LOC{iw}.Freq_hi(idet) - obj.LOC{iw}.Freq_lo(idet);
+                    sigma2_tdoa = max(1 ./ (2 * pi * bandwidth .* sqrt(2*obj.LOC{iw}.XAmp_pk2rms(idet, idxNotNan).^2)));
+                    sigma = sqrt(sigma2_recPos + sigma2_tdoa); 
+                    try
+                        L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
+                    catch
+                        ok =1
+                    end
                     [~, idxMax] = max(L);
 
                     obj.LOC{iw}.x_m(idet, :) = obj.MOD.grid(idxMax, 1);
@@ -211,6 +228,10 @@ classdef gridSearch < handle
                     obj.LOC{iw}.CI95_y(idet, 2) = min([obj.MOD.y_m(Cy>=.975), obj.userParams.ymax_m]);
                     obj.LOC{iw}.CI95_z(idet, 1) = max([obj.MOD.z_m(Cz<=.025), obj.userParams.zmin_m]);
                     obj.LOC{iw}.CI95_z(idet, 2) = min([obj.MOD.z_m(Cz>=.975), obj.userParams.zmax_m]);
+                    
+                    obj.LOC{iw}.CI95_x_dist(idet) = max(obj.LOC{iw}.CI95_x(idet, :) - obj.LOC{iw}.x_m(idet, :));
+                    obj.LOC{iw}.CI95_y_dist(idet) = max(obj.LOC{iw}.CI95_y(idet, :) - obj.LOC{iw}.y_m(idet, :));
+                    obj.LOC{iw}.CI95_z_dist(idet) = max(obj.LOC{iw}.CI95_z(idet, :) - obj.LOC{iw}.z_m(idet, :));
                 end
             end
             

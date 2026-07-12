@@ -107,7 +107,7 @@ classdef pamdata < handle
 
             fileLength_samples = info.TotalSamples;
             fileLength_s = fileLength_samples/fs;
-           fileStartTime = datenum(strrep(wavfile(end-18:end-4),'_','-'), 'yyyymmdd-HHMMSS'); % Fixed issue with '-' (JS)
+            fileStartTime = datenum(strrep(wavfile(end-18:end-4),'_','-'), 'yyyymmdd-HHMMSS'); % Fixed issue with '-' (JS)
             fileEndTime = fileStartTime + fileLength_s/spd;
 
             % Trim PAMGAURD table to just those detections within in current wav file:
@@ -126,19 +126,28 @@ classdef pamdata < handle
             numDet = height(T);
 
             TDOA = nan(numDet, obj.internalParams.numTDOA);
-            XAmp = TDOA;
+            XAmp_pk = TDOA;
+            XAmp_rms = TDOA;
             TDet = nan(numDet, 1);
+            Freq_lo = nan(numDet, 1);
+            Freq_hi = nan(numDet, 1);
+            filter_order = obj.userParams.filterOrder*ones(numDet, 1);
+
             for nt = 1:numDet
                 f1 = max([T.freqMin(nt), 1]);
                 f2 = min([T.freqMax(nt), fs/2]); % Fixed incorrect assignment to freqMin (JS)
                 
                 if f2-f1 < 5 % too narrowband for default bandpass filter
                     f = max([f1, f2]);
-                    b = fir1(obj.userParams.filterOrder, [f-5, f+5].*2./fs, 'bandpass');
+                    f1 = max([f-5, 1]);
+                    f2 = min([f+5, fs/2-5]);
+                    b = fir1(obj.userParams.filterOrder, [f1, f2].*2./fs, 'bandpass');
                 else
                     b = fir1(obj.userParams.filterOrder, [f1, f2].*2./fs, 'bandpass');
                 end
-
+                
+                Freq_lo(nt) = f1;
+                Freq_hi(nt) = f2;
                 TDet(nt) = T.time_ml(nt);
 
                 t1 = TDet(nt) - (T.duration(nt)+obj.userParams.maxTDOA)/spd; % start time of current window
@@ -157,14 +166,19 @@ classdef pamdata < handle
                 for npair = 1:obj.internalParams.numTDOA
                     [xcmax, imax] = max(xc(:, obj.internalParams.idx_xcorr(npair)));
                     TDOA(nt, npair) = lags(imax)/fs;
-                    XAmp(nt, npair) = xcmax;
+                    XAmp_pk(nt, npair) = xcmax;
+                    XAmp_rms(nt, npair) = sqrt(mean(xc(:, obj.internalParams.idx_xcorr(npair)).^2));
                 end
             end
            
             DET = table;
             DET.TDOA = TDOA;
             DET.TDet = TDet;
-            DET.XAmp = XAmp;
+            DET.XAmp_pk = XAmp_pk;
+            DET.XAmp_rms = XAmp_rms;
+            DET.XAmp_pk2rms = XAmp_pk./XAmp_rms;
+            DET.Freq_lo = Freq_lo;
+            DET.Freq_hi = Freq_hi;
         end
     end
 end
