@@ -106,7 +106,7 @@ classdef gridSearch < handle
                 end
             end
             
-            if obj.internalParams.Ngridpoints < obj.internalParams.maxModelInActiveMemory_kb*8000
+            if obj.internalParams.Ngridpoints < obj.internalParams.maxModelInActiveMemory_kb*2^13
                 % whole model can be in active memory
                 [x, y, z] = ndgrid(obj.MOD.x_m, obj.MOD.y_m, obj.MOD.z_m); 
                 obj.MOD.grid = [x(:), y(:), z(:)];
@@ -122,10 +122,11 @@ classdef gridSearch < handle
                 end
                 MOD = obj.MOD;
                 save(obj.wheresWhaledo.localizePanel.saveModelLocation, 'MOD')
+                fprintf('model saved!')
             else
                 % model must be built, saved, and loaded in smaller sections
                 % TO DO
-                fprintf('LARGE MODEL COMPATIBILITY NOT COMPLETE\n Please reduce model size and try again')
+                fprintf('ERROR: LARGE MODEL COMPATIBILITY NOT COMPLETE\n Please reduce model size and try again')
             end
         end
         function LOC = run(obj)
@@ -141,7 +142,7 @@ classdef gridSearch < handle
             sigma2_recPos = sqrt(2*obj.userParams.sigma^2/1500^2); % confidence interval on hydrophone position estimate, in seconds
             
             if isempty(obj.DET.label)
-                print('Cannot localize. \nNo detections found.')
+                fprintf('Cannot localize. \nNo labled detections found.')
                 return
             end
 
@@ -172,16 +173,28 @@ classdef gridSearch < handle
                         obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
                         for itdoa = 1:obj.internalParams.NhydPairs
                             idxNotNan = ~isnan(obj.LOC{iw}.TDOA(:, itdoa));
-                            obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
+                            if sum(idxNotNan)==0
+                                continue
+                            elseif sum(idxNotNan)==1
+                                obj.LOC{iw}.TDOAi(:, itdoa) = obj.LOC{iw}.TDOA(idxNotNan, itdoa);
+                            else
+                                obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
                                 obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
+                            end
                         end
                     otherwise % smooth with moving average
                         obj.LOC{iw}.TDOAi = obj.LOC{iw}.TDOA;
                         for itdoa = 1:obj.internalParams.NhydPairs
                             idxNotNan = ~isnan(obj.LOC{iw}.TDOA(:, itdoa));
-                            obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
-                                obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
-                            obj.LOC{iw}.TDOAi(:, itdoa) = movmean(obj.LOC{iw}.TDOAi(:, itdoa), obj.userParams.windowLength, 'omitnan');
+                            if sum(idxNotNan)==0
+                                continue
+                            elseif sum(idxNotNan)==1
+                                obj.LOC{iw}.TDOAi(:, itdoa) = obj.LOC{iw}.TDOA(idxNotNan, itdoa);
+                            else
+                                obj.LOC{iw}.TDOAi(:, itdoa) = interp1(obj.LOC{iw}.TDet(idxNotNan),...
+                                    obj.LOC{iw}.TDOA(idxNotNan, itdoa), obj.LOC{iw}.TDet, 'nearest', 'extrap');
+                                obj.LOC{iw}.TDOAi(:, itdoa) = movmean(obj.LOC{iw}.TDOAi(:, itdoa), obj.userParams.windowLength, 'omitnan');
+                            end
                         end
                 end
                 for idet = 1:Ndet
@@ -196,11 +209,9 @@ classdef gridSearch < handle
                     bandwidth = obj.LOC{iw}.Freq_hi(idet) - obj.LOC{iw}.Freq_lo(idet);
                     sigma2_tdoa = max(1 ./ (2 * pi * bandwidth .* sqrt(2*obj.LOC{iw}.XAmp_pk2rms(idet, idxNotNan).^2)));
                     sigma = sqrt(sigma2_recPos + sigma2_tdoa); 
-                    try
-                        L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
-                    catch
-                        ok =1
-                    end
+                    
+                    L = 1/(2*pi*sigma^2)^numNotNan * exp(-1/(2*sigma^2).*err);
+
                     [~, idxMax] = max(L);
 
                     obj.LOC{iw}.x_m(idet, :) = obj.MOD.grid(idxMax, 1);
