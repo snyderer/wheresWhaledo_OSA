@@ -101,6 +101,14 @@ classdef pamdata < handle
 
             % get required values from wav file header:
             info = audioinfo(wavfile);
+            
+            if info.NumChannels ~= obj.internalParams.numRec
+                fprintf(['ERROR: Audio file does not have correct number of channels: \n' ...
+                    ' Array table shows %d channels. \n Audio file has  %d channels.\n'], ...
+                    obj.internalParams.numRec, info.NumChannels)
+                return
+            end
+
             fs = info.SampleRate;
             spd = 60*60*24; % seconds per day
             maxLags = ceil(obj.userParams.maxTDOA*fs);
